@@ -43,45 +43,26 @@ tópico; o requisito vem da sentença negativa dentro do aspecto.
   `channel` e `product_category` são colineares (cada canal cobre uma família) → só a categoria
   entra na fórmula; canal fica em análise descritiva.
 
-## 4. Metodologia prévia (pipeline)
+## 4. Pipeline de sentenças e evidências
 
 ```
-00-dataset/            build_corpus.py — JSON → CSV (video_id, message, title, channel,
-                       upload_date, year, views, likes, duration, source, product_category)
-01-preprocessing/      corpus `youtube`: limpeza conservadora, filtro de idioma (langdetect),
-                       filtro de comprimento, post_id = video_id → corpus_limpo.csv
-02-sentences/          restauração de pontuação (só docs `legenda`) → segmentação spaCy →
-                       sentimento por sentença (transformer EN) → corpus de sentenças com
-                       covariáveis herdadas + amostra de 300 para anotação manual (kappa ≥ 0,70)
-03-topic-modeling/     STM em dois corpora (mesmo protocolo, ver §5):
-                         youtube_doc   prevalence ~ product_category + s(year)
-                         youtube_sent  prevalence ~ sentiment * product_category
-04-requirements/       findThoughts nas sentenças negativas por tópico → requisitos candidatos →
-                       anotação (precisão) → recall vs. baseline lexical (problem/issue/wish/should…)
+00-dataset/            JSON → CSV bruto de transcrições
+01-preprocessing/      limpeza, filtro EN e corpus_limpo.csv (1.109 documentos)
+03-topic-modeling/     STM no documento: K=12, aspectos por categoria de produto
+02-sentences/          130.016 sentenças com contexto e proveniência;
+                       `legenda` recebe restauração de pontuação, `whisper` é preservado
+04-requirements/       join por post_id com o STM → tabela de revisão humana
 ```
 
-Ordem de execução: 00 → 01 → 02 → 03 (doc e sent) → 04. Cada módulo lê `data/output/` do
-anterior via `resolve_latest_dir` (latest-wins) e grava em `data/output/<corpus>/<run_id>/`.
+`02-sentences` mantém `message_raw`, `message_punctuated`, `punctuation_restored`,
+`is_fragment` e `is_dup_exact`. Nenhuma sentença é excluída automaticamente.
 
-### 4.1 Pré-processamento (01)
-Limpeza conservadora (HTML, URLs, espaços), sem remover pontuação (necessária para segmentação
-no módulo 02); dedup exata; filtro de idioma na transcrição; `min_words = 100`; sem amostragem.
+`04-requirements` não infere requisitos automaticamente: cria uma linha por evidência com
+aspecto/tópico, sentença, contexto e campos vazios para `requirement_candidate`,
+`review_decision` e `review_notes`. Evidências positivas, negativas ou neutras podem ser
+avaliadas por humanos.
 
-### 4.2 Sentenças e sentimento (02)
-- Pontuação: `oliverguhr/fullstop-punctuation-multilang-large` nos 274 docs sem pontuação
-  (se a qualidade for baixa, o nível sentença exclui `source = legenda` e reporta).
-- Segmentação: spaCy `en_core_web_sm`; descarta sentenças com < 4 tokens.
-- Sentimento: classificador transformer em inglês (decisão entre `siebert/sentiment-roberta-large-english`
-  e `cardiffnlp/twitter-roberta-base-sentiment-latest` após teste em 50 sentenças).
-  Validação: 300 sentenças, 2 anotadores cegos, kappa ≥ 0,70; F1 por classe reportado.
-- Volume esperado: ~100k sentenças.
-
-### 4.3 Elicitação (04)
-Para cada tópico com efeito `sentiment = neg` significativo (p < 0,05): top-N sentenças negativas
-por θ → redação de requisitos candidatos (manual ou LLM-assistida com validação humana) →
-planilha de anotação → precisão. Baseline lexical de problema/desejo para medir recall e
-complementaridade. RQ4: confronto com as keywords do nível documento.
-
+Ordem de execução atual: `00 → 01 → 03 (STM documento) → 02 → 04`.
 ## 5. Protocolo do STM (herdado e calibrado no projeto anterior)
 
 O motor é o pacote R `stm` (v1.3.8), chamado por subprocess (`scripts/run_stm.R`, modos
@@ -172,14 +153,13 @@ métricas + export                    C_v, exclusividade c-TF-IDF, topic diversi
 ## 8. Estrutura do repositório
 
 ```
-00-dataset/            build_corpus.py, product_category_overrides.csv, test_build_corpus.py
-01-preprocessing/      configs/params.yaml, notebooks/01_preprocessing.ipynb,
-                       test_corpus_limpo.py, data/{raw,output}
-03-topic-modeling/     configs/params.yaml, configs/advisor_prompts/{shared.yaml,stm/},
-                       notebooks/{_helpers.py,_selecao.py,_advisor.py,stm/,advisor/,test_params_youtube.py},
-                       scripts/run_stm.R
-articles/              PDFs + artigos_mapeados.txt          (não versionado)
-docs/                  planos e especificações              (não versionado)
+00-dataset/            build_corpus.py, test_build_corpus.py
+01-preprocessing/      configs/, notebooks/, test_corpus_limpo.py, data/{raw,output}
+02-sentences/          build_sentences.py, notebooks/, testes, data/output/
+03-topic-modeling/     STM de documento, configs/, notebooks/, scripts/run_stm.R
+04-requirements/       build_review_table.py, notebook/, testes, data/output/
+articles/              materiais de referência (não versionado)
+docs/                  planos e especificações (não versionado)
 ```
 
 `.gitignore` exclui `articles/`, `docs/`, `data/raw`, `data/output`, datasets `.json`, logs e `.venv`.
