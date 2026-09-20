@@ -14,9 +14,10 @@ def test_seed_declarada_e_42():
     assert _selecao.SEED == 42
 
 
-def test_faixa_k_declara_youtube_doc():
-    """A3: faixa substantiva de K declarada ANTES de olhar a grade."""
-    assert _selecao.FAIXA_K == {"youtube_doc": (8, 25)}
+def test_faixa_k_declara_youtube_doc_e_youtube_sent():
+    """A3: faixa substantiva de K declarada ANTES de olhar a grade, por corpus."""
+    assert _selecao.FAIXA_K["youtube_doc"] == (8, 25)
+    assert _selecao.FAIXA_K["youtube_sent"] == (10, 40)
 
 
 def test_desempate_stm_e_menor_k():

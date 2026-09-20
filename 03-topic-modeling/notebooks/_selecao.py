@@ -31,9 +31,11 @@ FAIXA_K = {
     # youtube_doc: ~1.100 transcricoes em 9 categorias de produto; abaixo de 8
     # topicos nao ha um aspecto por familia; acima de 25 fragmenta.
     "youtube_doc": (8, 25),
-    # youtube_sent (sentenca + sentimento) fica fora do escopo por ora; volta
-    # quando existir o pipeline de sentenca.
-
+    # youtube_sent: ~116k sentencas apos limpeza, mesmas 9 categorias de
+    # produto mas granularidade fina (aspectos dentro de aspectos)  faixa
+    # cobre a grade inteira testada em stm_k_range ([10,40]); sem sentiment
+    # ainda, ver docs/superpowers/specs/2026-09-20-stm-youtube-sent-design.md.
+    "youtube_sent": (10, 40),
 }
 
 DESEMPATE_STM = "K"
