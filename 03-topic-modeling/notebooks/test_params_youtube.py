@@ -23,9 +23,9 @@ def test_preprocessing_params_so_tem_corpus_youtube():
     assert p["default_corpus"] == "youtube"
 
 
-def test_topic_modeling_params_tem_doc_e_sent():
+def test_topic_modeling_params_so_tem_youtube_doc():
     p = load_params()
-    assert sorted(p["corpora"]) == ["youtube_doc", "youtube_sent"]
+    assert list(p["corpora"]) == ["youtube_doc"]
     assert p["default_corpus"] == "youtube_doc"
     for k in ("bertopic", "lda", "nmf"):
         assert k not in p, f"bloco {k} deveria ter saido"
@@ -43,9 +43,9 @@ def test_youtube_doc_tem_chaves_do_template_stm():
     assert c["language"] == "en"
 
 
-def test_youtube_sent_tem_sentimento_na_formula():
-    _, c = get_corpus_config(load_params(), "youtube_sent")
-    assert c["subdir"] == "youtube_sent"
-    assert c["covariates"] == ["sentiment", "product_category"]
-    assert c["stm_prevalence_formula"] == "~ sentiment * product_category"
-    assert c["stm_min_tokens_per_doc"] == 5
+
+
+def test_youtube_doc_tem_k_pinado_pelo_protocolo():
+    _, c = get_corpus_config(load_params(), "youtube_doc")
+    assert isinstance(c.get("stm_best_k"), int)
+    assert 8 <= c["stm_best_k"] <= 25

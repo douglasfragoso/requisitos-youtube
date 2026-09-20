@@ -51,7 +51,7 @@ prevalence <- opt_or("prevalence", "")
 set.seed(seed)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-meta <- read.csv(input_csv, fileEncoding = "UTF-8", stringsAsFactors = FALSE,
+meta <- read.csv(input_csv, encoding = "UTF-8", stringsAsFactors = FALSE,
                  colClasses = "character")
 if (!"text" %in% names(meta)) stop("stm_input.csv sem coluna 'text'")
 # covariaveis categoricas viram factor; 'date' fica character (a formula converte)

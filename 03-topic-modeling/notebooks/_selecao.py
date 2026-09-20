@@ -31,9 +31,9 @@ FAIXA_K = {
     # youtube_doc: ~1.100 transcricoes em 9 categorias de produto; abaixo de 8
     # topicos nao ha um aspecto por familia; acima de 25 fragmenta.
     "youtube_doc": (8, 25),
-    # youtube_sent: ~100k sentencas curtas; aspectos x polaridade pedem mais
-    # resolucao; teto 40 pelo custo de leitura humana na RQ3.
-    "youtube_sent": (10, 40),
+    # youtube_sent (sentenca + sentimento) fica fora do escopo por ora; volta
+    # quando existir o pipeline de sentenca.
+
 }
 
 DESEMPATE_STM = "K"
@@ -103,8 +103,9 @@ def selecionar_stm(corpus: str) -> None:
         return
 
     print(f"\nFronteira de Pareto ({' x '.join(eixos_stm)}): {len(fr)} de {len(adm)}")
-    escolhido = fr.sort_values(DESEMPATE_STM, ascending=DESEMPATE_STM_ASCENDING).iloc[0]
-    print("Desempate declarado: menor K")
+    criterios = ["cv"] + eixos_stm + [DESEMPATE_STM]
+    escolhido = fr.sort_values(criterios, ascending=[False] * (len(criterios) - 1) + [True]).iloc[0]
+    print("Decisao: maior C_v; empates por coerencia, exclusividade, diversity e menor K")
 
     cols = ["K", "cv", "semantic_coherence", "exclusivity_stm", "diversity",
             "heldout_likelihood", "residual_dispersion"]
@@ -114,12 +115,6 @@ def selecionar_stm(corpus: str) -> None:
     print(fr.sort_values(DESEMPATE_STM, ascending=DESEMPATE_STM_ASCENDING)[cols]
           .round(4).to_string(index=False))
     print(f"\n>>> ESCOLHIDO: K={int(escolhido['K'])}")
-    if "cv" in adm.columns:
-        melhor_cv_k = int(adm.loc[adm["cv"].idxmax(), "K"])
-        if melhor_cv_k != int(escolhido["K"]):
-            print(f"    ATENCAO: por C_v (reporte, nao decide) o argmax seria K={melhor_cv_k}.")
-            print("    Divergencia entre eixos e informacao, nao erro — reportar os dois.")
-
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)

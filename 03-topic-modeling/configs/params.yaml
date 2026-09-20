@@ -31,35 +31,7 @@ corpora:
     token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
     stm_prevalence_formula: "~ s(as.numeric(as.Date(date))) + product_category"
     stm_min_tokens_per_doc: 200
-    language: en
-
-  youtube_sent:
-    subdir: youtube_sent
-    description: "sentencas das transcricoes, EN, com polaridade de sentimento"
-    text_column: message
-    date_column: upload_date
-    post_id_column: post_id
-    covariates:
-      - sentiment
-      - product_category
-    stopwords_emojis:
-      - "yeah"
-      - "okay"
-      - "gonna"
-      - "wanna"
-      - "gotta"
-      - "kind"
-      - "lot"
-      - "thing"
-      - "stuff"
-      - "guy"
-      - "video"
-      - "channel"
-      - "subscribe"
-      - "like"
-    token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
-    stm_prevalence_formula: "~ sentiment * product_category"
-    stm_min_tokens_per_doc: 5
+    stm_best_k: 12  # maior C_v; demais metricas e menor K so desempatem
     language: en
 
 # =============================================================================

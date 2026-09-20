@@ -14,9 +14,9 @@ def test_seed_declarada_e_42():
     assert _selecao.SEED == 42
 
 
-def test_faixa_k_declara_os_dois_corpora_youtube():
+def test_faixa_k_declara_youtube_doc():
     """A3: faixa substantiva de K declarada ANTES de olhar a grade."""
-    assert _selecao.FAIXA_K == {"youtube_doc": (8, 25), "youtube_sent": (10, 40)}
+    assert _selecao.FAIXA_K == {"youtube_doc": (8, 25)}
 
 
 def test_desempate_stm_e_menor_k():
@@ -54,8 +54,8 @@ def test_stm_cai_para_dois_eixos_e_avisa_sem_diversity():
     assert _selecao._eixos_stm(d) == ["semantic_coherence", "exclusivity_stm"]
 
 
-def test_selecionar_stm_ponta_a_ponta_escolhe_menor_k_da_fronteira(tmp_path, monkeypatch, capsys):
-    """Grade sintetica: K=8 e K=15 nao dominados; desempate = menor K → 8."""
+def test_selecionar_stm_ponta_a_ponta_escolhe_maior_cv(tmp_path, monkeypatch, capsys):
+    """Grade sintetica: C_v maior em K=15 decide antes das demais metricas."""
     base = tmp_path / "youtube_doc" / "stm"
     base.mkdir(parents=True)
     pd.DataFrame({
@@ -70,5 +70,5 @@ def test_selecionar_stm_ponta_a_ponta_escolhe_menor_k_da_fronteira(tmp_path, mon
     monkeypatch.setattr(_selecao, "OUT", tmp_path)
     _selecao.selecionar_stm("youtube_doc")
     out = capsys.readouterr().out
-    assert "ESCOLHIDO: K=8" in out
-    assert "por C_v (reporte, nao decide) o argmax seria K=15" in out
+    assert "ESCOLHIDO: K=15" in out
+    assert "Decisao: maior C_v" in out
