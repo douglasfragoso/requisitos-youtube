@@ -41,7 +41,7 @@ if (-not (Test-Path $notebook)) {
     throw "Notebook nao encontrado: $notebook"
 }
 
-$pythonExe = Join-Path $repoRoot "venv\Scripts\python.exe"
+$pythonExe = Join-Path $repoRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $pythonExe)) {
     throw "venv nao encontrado em: $pythonExe"
 }
