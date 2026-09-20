@@ -1,0 +1,9 @@
+#### O que é
+A matriz H (tópico × palavra) do NMF [@lee1999nmf], normalizada por linha —
+análoga à φ do LDA, mas sem interpretação probabilística: são pesos aditivos
+não-negativos.
+
+#### Como ler
+- Como no LDA: linhas concentradas = tópicos coesos; colunas ativas em muitos tópicos = termos ambíguos.
+- O NMF tende a produzir matrizes mais esparsas que o LDA — células "mornas" espalhadas merecem mais atenção aqui.
+- A versão completa da matriz está persistida em `nmf_beta.csv` no run dir.

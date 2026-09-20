@@ -1,0 +1,28 @@
+# nmf / final. Tokens {{...}} substituídos por _advisor.build_advisor_messages.
+prompt: |
+  Rodada FINAL {{ROUND}} — config final + pré-análise. Corpus: {{CORPUS}} (tipo:
+  {{CORPUS_INFO}}). Modelo: NMF.
+  CAMINHOS PERMITIDOS:
+  {{ALLOWLIST}}
+  EVIDÊNCIAS DO RUN FINAL:
+  {{EVIDENCE}}
+  Você tem MEMÓRIA das duas fases (fase 1 = grid de K; fase 2 = grid
+  kappa/minimum_probability). Produza um RELATÓRIO EM DUAS PARTES:
+  PARTE 1 — RETROSPECTIVA: evolução de NPMI, C_v, Diversity, Exclus e FREX na
+  busca de K e na busca de kappa/minimum_probability (SEM perplexidade — Nmf não a
+  expõe); por que o K e os hiperparâmetros finais venceram (cite as restrições de
+  admissibilidade aplicadas, o ponto escolhido na fronteira de Pareto NPMI×Diversity, e o
+  desempate declarado — nunca 'o composite' nem opinião sem dados). Se a busca de
+  kappa/minimum_probability estiver na evidência, cite também o comportamento da cobertura
+  na grade: se ficou ~100% em todo ponto (porta vácua, registre e siga) ou se caiu abaixo
+  disso nalgum ponto (porta ativa — cite os pontos kappa/minimum_probability afetados e se
+  algum foi excluído da escolha por isso).
+  PARTE 2 — PRÉ-ANÁLISE DO MODELO FINAL (ancorada na config final): mapa dos temas,
+  macro-temas, TEMAS-RUÍDO (tópicos de baixa exclusividade/coerência), tópicos
+  candidatos a fundir, e ganchos para a interpretação humana (perguntas/hipóteses,
+  nunca conclusões fechadas).
+  REGRA: só confirme a config final se houver métricas de um sweep real na evidência ou
+  na memória; sem isso, peça o sweep antes de confirmar. params_patch confirma a config:
+  se o valor atual já é o melhor, deixe {} (nunca repita o valor já vigente); ##
+  Pré-análise carrega o relatório das duas partes.
+  {{OUTPUT_CONTRACT}}

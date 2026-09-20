@@ -1,0 +1,10 @@
+#### O que é
+Cruzamento do tópico dominante do STM com o rótulo externo — editoria (Folha)
+ou mês eleitoral (tweets). No STM esse rótulo também é **covariável de
+prevalência**, então aqui ele aparece duas vezes: como validação descritiva e,
+no forest plot, como efeito estimado.
+
+#### Como ler
+- Linhas com massa concentrada em poucos tópicos = categoria bem recuperada pelo modelo.
+- Divergência entre esta contagem e o efeito do `estimateEffect` é informativa: a contagem é bruta, o efeito é controlado pelas demais covariáveis.
+- Tópicos que atravessam muitas categorias podem ser transversais genuínos ou catch-alls.

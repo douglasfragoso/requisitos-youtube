@@ -1,0 +1,9 @@
+#### O que é
+Rótulos FREX [@bischof2012frex; @airoldi2016frex]: média harmônica ponderada
+de **fr**equência e **ex**clusividade da palavra no tópico — o rotulador
+padrão do pacote `stm` [@roberts2019stm].
+
+#### Como ler
+- Comparar a coluna FREX com as top palavras por probabilidade: quando divergem muito, as palavras frequentes do tópico são compartilhadas com outros temas.
+- FREX privilegia termos que "pertencem" ao tópico — melhor para nomear; probabilidade bruta é melhor para medir cobertura lexical.
+- Termos FREX raros demais (frequência ínfima) podem ser idiossincrasias de poucos documentos.

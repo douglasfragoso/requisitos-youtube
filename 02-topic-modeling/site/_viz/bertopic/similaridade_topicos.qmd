@@ -1,0 +1,9 @@
+#### O que é
+Similaridade de cosseno entre os vetores c-TF-IDF de todos os pares de tópicos
+— diagnóstico direto de redundância temática, no espaço de representação que o
+BERTopic usa para rotular.
+
+#### Como ler
+- Células quentes fora da diagonal = pares candidatos a fusão ou a renomeação (mesmo tema em ângulos diferentes).
+- Matriz majoritariamente fria = boa diversidade; consistente com Topic Diversity alta [@dieng2020topic].
+- Diferente da hierarquia (que usa a mesma base), aqui não há corte: é a matriz completa, útil para achar pares que o `reduce_topics` deixou passar.

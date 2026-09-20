@@ -1,0 +1,53 @@
+CARACTERISTICAS DO DATASET LIMPO
+================================
+
+Arquivo: transcricoes_youtube_metadados.json
+Formato: array JSON com um registro por video do YouTube.
+Quantidade: 1.563 registros.
+
+ESTRUTURA DE CADA REGISTRO
+-------------------------
+
+Campos originais:
+- url: 1.563 registros
+- titulo: 1.563 registros
+- duracao: 1.563 registros
+- transcricao: 1.496 registros preenchidos
+- fonte: 1.480 registros preenchidos
+
+Metadados unicos em youtube_metadata:
+- id do video: 1.551
+- descricao: 1.551
+- canal e identificador do canal: 1.551 cada
+- uploader e identificador do uploader: 1.551 cada
+- data de upload (upload_date): 1.551
+- timestamp: 1.550
+- visualizacoes (view_count): 1.551
+- likes (like_count): 1.549
+- comentarios (comment_count): 1.530
+- categorias (categories): 1.550
+- tags: 1.513
+- idioma: 1.519
+- disponibilidade (availability): 1.550
+- estado de transmissao (live_status): 1.551
+- miniatura (thumbnail): 1.551
+
+Os campos repetidos de titulo, duracao e URL foram removidos de
+youtube_metadata. Os valores originais permanecem nos campos de primeiro
+nivel. A duracao original esta no formato do dataset; a duracao do YouTube
+nao foi mantida no objeto de metadados.
+
+COBERTURA E QUALIDADE
+---------------------
+
+- 1.496 registros possuem transcricao preenchida; 67 estao sem transcricao.
+- 1.551 registros possuem metadados coletados com sucesso.
+- 12 registros nao possuem metadados: os videos estavam privados ou
+  indisponiveis no YouTube.
+- metadata_status identifica o estado da coleta. Para os 12 casos sem
+  metadados, metadata_error registra a mensagem correspondente.
+- Os metadados opcionais podem estar ausentes em alguns registros; por
+  exemplo, contagem de comentarios, tags, idioma e timestamp nao estao
+  disponiveis para todos os videos acessiveis.
+- Visualizacoes, likes e comentarios representam os valores observados na
+  coleta, em 11/09/2026; nao sao necessariamente os valores atuais.

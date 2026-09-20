@@ -1,0 +1,9 @@
+#### O que é
+Dendrograma da fusão hierárquica dos tópicos (distância entre embeddings
+c-TF-IDF) [@grootendorst2022bertopic] — mostra a que altura cada par de
+tópicos se uniria.
+
+#### Como ler
+- Fusões baixas (cedo) = tópicos quase-duplicados; é onde o `reduce_topics` age primeiro.
+- Ramos que só se unem no topo são temas genuinamente distintos.
+- Validar os cortes contra o Sankey do reduce_topics: as fusões executadas devem corresponder às fusões baixas daqui.

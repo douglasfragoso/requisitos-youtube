@@ -1,0 +1,9 @@
+#### O que é
+Contagem de documentos por tópico dominante (argmax da distribuição θ
+documento-tópico, derivada da matriz W). No NMF todo documento recebe tópico —
+cobertura 100%.
+
+#### Como ler
+- Distribuição aproximadamente uniforme = nenhum tópico "aspirador"; um tópico com fração desproporcional tende a ser catch-all.
+- Tópicos minúsculos (< ~1% dos docs) merecem inspeção qualitativa: podem ser nicho real ou ruído.
+- Comparar com o BERTopic do mesmo corpus: lá a cobertura é parcial (outliers), aqui a régua é a concentração.

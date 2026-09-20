@@ -1,0 +1,11 @@
+#### O que é
+Forest plot dos efeitos de `estimateEffect` [@roberts2019stm]: quanto cada
+covariável documental (editoria, mês) desloca a prevalência esperada de cada
+tópico — **o diferencial do STM** sobre LDA/NMF: metadados entram no modelo,
+não só na validação a posteriori [@roberts2014stm].
+
+#### Como ler
+- Cada ponto = efeito estimado; a barra = IC 95%. Barra que não cruza o zero = efeito estatisticamente distinguível.
+- Sinal positivo = a covariável aumenta a proporção esperada do tópico, controlando pelas demais.
+- Efeitos grandes com IC largo pedem cautela — checar o n de documentos da covariável.
+- Multiplicidade: cada célula tópico × categoria é um teste separado (ex.: 25 tópicos × 9 categorias ≈ 225 testes na Folha) — sem correção para múltiplas comparações, dezenas de falsos positivos são esperados só por acaso a α=0,05. "Barra que não cruza o zero" isolada é candidato a efeito, não significância confirmada.

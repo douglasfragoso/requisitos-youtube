@@ -1,0 +1,28 @@
+# --- Ambiente ---
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.deepeval/
+.pytest_cache/
+.env
+
+# --- Documentos de trabalho e literatura (não versionados) ---
+docs/
+articles/
+
+# --- Dados brutos, datasets consolidados e saídas de pipeline ---
+*/data/raw/*
+*/data/output/*
+!*/data/raw/.gitkeep
+!*/data/output/.gitkeep
+*.json
+!*/configs/*.json
+*.log
+
+# --- Caches de modelos ---
+*.npy
+*.npz
+*.pkl
+*.model
+*.bin

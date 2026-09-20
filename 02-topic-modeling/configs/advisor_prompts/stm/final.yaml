@@ -1,0 +1,24 @@
+# stm / final. Tokens {{...}} substituídos por _advisor.build_advisor_messages.
+prompt: |
+  Rodada FINAL {{ROUND}} — config final + pré-análise. Corpus: {{CORPUS}} (tipo:
+  {{CORPUS_INFO}}). Modelo: STM.
+  CAMINHOS PERMITIDOS:
+  {{ALLOWLIST}}
+  EVIDÊNCIAS DO RUN FINAL:
+  {{EVIDENCE}}
+  Você tem MEMÓRIA das duas fases (fase 1 = grid de K; fase 2 = grid
+  sigma.prior/gamma.prior). Produza um RELATÓRIO EM DUAS PARTES:
+  PARTE 1 — RETROSPECTIVA: evolução de semantic_coherence, exclusivity_stm,
+  Diversity, C_v e FREX (heldout do R apenas como diagnóstico) na busca de K e na busca de
+  sigma/gamma; por que o K e os priors finais venceram (cite a fronteira semantic
+  coherence×exclusivity e o ponto escolhido — nunca 'o composite' nem opinião sem dados);
+  se os pins por corpus continuam válidos.
+  PARTE 2 — PRÉ-ANÁLISE DO MODELO FINAL (ancorada na config final): mapa dos temas,
+  macro-temas, TEMAS-RUÍDO, tópicos candidatos a fundir, efeitos de prevalência
+  relevantes (estimateEffect) se presentes, e ganchos para a interpretação humana
+  (perguntas/hipóteses, nunca conclusões fechadas).
+  REGRA: só confirme a config final se houver métricas de um sweep real na evidência ou
+  na memória; sem isso, peça o sweep antes de confirmar. params_patch confirma a config:
+  se o valor atual (incl. pins por corpus) já é o melhor, deixe {} (nunca repita o valor
+  já vigente); ## Pré-análise carrega o relatório das duas partes.
+  {{OUTPUT_CONTRACT}}

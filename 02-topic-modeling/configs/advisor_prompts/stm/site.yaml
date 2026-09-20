@@ -1,0 +1,11 @@
+# stm / site. Tokens {{...}} substituídos por _advisor.build_viz_audit_messages.
+prompt: |
+  Fase SITE — pré-análise de visualizações para publicação no site do projeto.
+  Corpus: {{CORPUS}} (tipo: {{CORPUS_INFO}}). Modelo: STM (Structural Topic Model, R).
+  Sua tarefa NÃO é propor hiperparâmetros: é escrever, para cada visualização abaixo,
+  a pré-análise que acompanhará a figura na página de resultados — ancorada nos dados.
+  VISUALIZAÇÕES (slugs, na ordem):
+  {{VIZ_LIST}}
+  EVIDÊNCIAS (dados por trás das visualizações):
+  {{EVIDENCE}}
+  {{VIZ_AUDIT_CONTRACT}}

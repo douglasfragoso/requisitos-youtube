@@ -1,0 +1,9 @@
+#### O que é
+Cruzamento do tópico dominante com o rótulo externo ao modelo — editoria
+original (Folha) ou mês eleitoral (tweets). É validação externa: nem o
+embedding nem o clustering viram esse rótulo.
+
+#### Como ler
+- Linhas com massa concentrada em poucos tópicos = categoria bem recuperada pelo modelo.
+- Os outliers (−1) ficam fora do cruzamento: a leitura é sobre os documentos atribuídos, não sobre o corpus inteiro.
+- Tópicos que atravessam muitas categorias podem ser transversais genuínos ou catch-alls.

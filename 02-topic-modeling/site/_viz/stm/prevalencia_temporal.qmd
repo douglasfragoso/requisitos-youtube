@@ -1,0 +1,9 @@
+#### O que é
+Prevalência esperada dos tópicos como função suave do tempo (spline
+`s(as.numeric(date))` na fórmula de prevalência), com bandas de confiança
+[@roberts2019stm].
+
+#### Como ler
+- Diferente da contagem bruta mensal: é o efeito do tempo **estimado pelo modelo**, controlado pelas demais covariáveis.
+- Cruzamentos de curvas marcam trocas de agenda; bandas largas nas pontas do período são artefato de borda da spline.
+- Comparar com o topics-over-time (contagem observada): divergências indicam efeito de composição do corpus.

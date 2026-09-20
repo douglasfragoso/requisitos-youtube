@@ -1,0 +1,9 @@
+#### O que é
+Cruzamento do tópico dominante do NMF com um rótulo externo ao modelo —
+editoria original (Folha) ou mês eleitoral (tweets). É validação externa: o
+modelo não viu esse rótulo durante o treino.
+
+#### Como ler
+- Linhas com massa concentrada em poucos tópicos = categoria bem recuperada pelo modelo.
+- Tópicos que atravessam muitas categorias podem ser transversais genuínos (ex.: "eleições") ou catch-alls.
+- Nos tweets, deslocamentos de coluna ao longo dos meses contam a narrativa temporal do evento.

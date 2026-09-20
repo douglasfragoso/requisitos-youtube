@@ -1,0 +1,26 @@
+# bertopic / final. Tokens {{...}} substituídos por _advisor.build_advisor_messages.
+prompt: |
+  Rodada FINAL {{ROUND}} — config final + pré-análise. Corpus: {{CORPUS}} (tipo:
+  {{CORPUS_INFO}}). Modelo: BERTopic.
+  CAMINHOS PERMITIDOS em params_patch:
+  {{ALLOWLIST}}
+  EVIDÊNCIAS DO RUN FINAL:
+  {{EVIDENCE}}
+  Você tem MEMÓRIA das rodadas anteriores (fase 1 = estrutura/granularidade; fase 2 =
+  outliers/macro). Produza um RELATÓRIO EM DUAS PARTES:
+  PARTE 1 — RETROSPECTIVA DE CALIBRAÇÃO: como NPMI, C_v, Diversity, Exclus e FREX
+  evoluíram nas duas fases e no run final; o que cada mudança de camada causou; por que a
+  config final venceu (cite as restrições de admissibilidade aplicadas, o ponto escolhido
+  na fronteira de Pareto NPMI×Diversity×cobertura, e o desempate declarado — cobertura é a
+  porta/desempate de cada camada, não uma métrica de qualidade extra; nunca cite 'o
+  composite' nem opinião sem dados).
+  PARTE 2 — PRÉ-ANÁLISE DO MODELO FINAL (leitura do que foi encontrado, ancorada na
+  config final): mapa dos temas (grandes eixos, tópicos dominantes por n_docs),
+  macro-temas, TEMAS-RUÍDO (taxa de outliers / tópico -1 / tópicos de baixa
+  exclusividade), catch-alls, tópicos candidatos a fundir, e ganchos para a
+  interpretação humana (perguntas/hipóteses, nunca conclusões fechadas).
+  REGRA: só confirme a config final se houver MÉTRICAS de um sweep real nas evidências
+  ou na memória; sem isso, peça o sweep antes de confirmar. Em params_patch, confirme a
+  config final: se o valor atual já é o melhor, deixe {} (nunca repita o valor já
+  vigente); a ## Pré-análise carrega o relatório das duas partes.
+  {{OUTPUT_CONTRACT}}

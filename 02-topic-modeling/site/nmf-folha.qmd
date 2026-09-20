@@ -1,0 +1,104 @@
+---
+title: "NMF — Folha de S. Paulo"
+subtitle: "Run de produção `folha_20260723_235727`"
+run_dir: "../data/output/folha/nmf/folha_20260723_235727"
+resources:
+  - "../data/output/folha/nmf/folha_20260723_235727/nmf_tsne_theta_interactive.html"
+  - "../data/output/folha/nmf/folha_20260723_235727/nmf_pyldavis_K25.html"
+---
+
+## Configuração calibrada
+
+| Parâmetro | Valor |
+|---|---|
+| K (grid search por C_v) | 25 |
+| kappa / minimum_probability (grid) | 1.0 / 0.0 |
+| Passes (treino final) | 20 |
+
+Mesmo protocolo de dois estágios do LDA (grid de K por C_v, depois grid de
+hiperparâmetros com K fixo), trocando α/η por `kappa`/`minimum_probability`
+[@lee1999nmf; @ocallaghan2015nmf]. Sem perplexidade (o `Nmf` do gensim não a expõe).
+
+## Métricas do run
+
+| Métrica | Valor |
+|---|---|
+| K tópicos | 25 |
+| C_v (modelo final) | 0.6535 |
+| Topic Diversity (Dieng) | 0.7560 |
+| Exclusividade | 0.4839 |
+| Outliers / Cobertura | 0% / 100% |
+
+## Visualizações
+
+### Keywords por tópico
+
+{{< include _viz/nmf/keywords_barchart.qmd >}}
+
+![Top-10 keywords por tópico]({{< meta run_dir >}}/nmf_keywords_barchart.png)
+
+
+::: {.callout-warning title="⚠️ Texto gerado por IA — pode conter erros" collapse="true"}
+{{< include ../data/output/folha/nmf/folha_20260723_235727/advisor_viz/keywords_barchart.md >}}
+:::
+
+### Heatmap H (palavra × tópico)
+
+{{< include _viz/nmf/heatmap_phi.qmd >}}
+
+![Heatmap H — top palavras × tópicos]({{< meta run_dir >}}/nmf_heatmap_phi.png)
+
+
+::: {.callout-warning title="⚠️ Texto gerado por IA — pode conter erros" collapse="true"}
+{{< include ../data/output/folha/nmf/folha_20260723_235727/advisor_viz/heatmap_phi.md >}}
+:::
+
+### Similaridade entre tópicos
+
+{{< include _viz/nmf/similaridade_topicos.qmd >}}
+
+![Similaridade de cosseno entre tópicos]({{< meta run_dir >}}/nmf_topic_similarity.png)
+
+
+### Documentos por tópico
+
+{{< include _viz/nmf/docs_por_topico.qmd >}}
+
+![Distribuição de documentos por tópico]({{< meta run_dir >}}/nmf_docs_por_topico.png)
+
+
+### Tópico × editoria
+
+{{< include _viz/nmf/topico_categoria.qmd >}}
+
+![Cruzamento tópico × editoria]({{< meta run_dir >}}/nmf_topic_category.png)
+
+
+### Documentos no espaço θ (t-SNE)
+
+{{< include _viz/nmf/tsne_theta.qmd >}}
+
+```{=html}
+<iframe src="../data/output/folha/nmf/folha_20260723_235727/nmf_tsne_theta_interactive.html"
+        width="100%" height="700" style="border:none;"></iframe>
+```
+
+
+### pyLDAvis (API genérica)
+
+{{< include _viz/lda/pyldavis.qmd >}}
+
+```{=html}
+<iframe data-src="../data/output/folha/nmf/folha_20260723_235727/nmf_pyldavis_K25.html"
+        width="100%" height="800" style="border:none;"></iframe>
+```
+
+## Figuras de apoio
+
+::: {layout-ncol=2}
+
+![Wordclouds por tópico]({{< meta run_dir >}}/nmf_wordclouds.png)
+
+![Evolução temporal dos tópicos]({{< meta run_dir >}}/nmf_topics_over_time.png)
+
+:::

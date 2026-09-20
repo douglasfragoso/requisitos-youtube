@@ -1,0 +1,9 @@
+#### O que é
+Projeção t-SNE [@maaten2008tsne] dos vetores θ do NMF (documento × tópico,
+linhas de W normalizadas) em 2D, com documentos coloridos pelo tópico
+dominante.
+
+#### Como ler
+- Ilhas compactas e monocromáticas = tópicos que separam bem os documentos.
+- Regiões de mistura de cores = documentos multi-tópico (θ difusa) — esperado em textos longos.
+- t-SNE preserva vizinhança local, não distância global: NÃO interpretar a distância entre ilhas distantes.

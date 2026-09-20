@@ -1,0 +1,8 @@
+#### O que é
+Fluxo dos tópicos originais do HDBSCAN para os tópicos finais após
+`reduce_topics` — rastreabilidade de quais clusters foram fundidos.
+
+#### Como ler
+- Fluxos que convergem = fusões; conferir se os tópicos fundidos eram de fato o mesmo tema (validar com a hierarquia).
+- Fusões entre temas distintos são o custo da granularidade-alvo (`reduce_topics_nr`) — documentar como ressalva.
+- Larguras ∝ nº de documentos: fusões grandes mudam mais a leitura final que as pequenas.

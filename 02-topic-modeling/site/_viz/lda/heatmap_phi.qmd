@@ -1,0 +1,8 @@
+#### O que é
+A matriz φ do LDA [@blei2003lda] dá P(palavra | tópico). O heatmap recorta as
+top palavras por tópico e revela a "assinatura lexical" de cada um.
+
+#### Como ler
+- Linhas com poucas células escuras = tópico concentrado em poucas palavras (bom sinal de coesão).
+- Colunas escuras em vários tópicos = palavra ambígua entre temas; se recorrente, é candidata a stopword de domínio.
+- Comparar com o heatmap de similaridade: pares de tópicos com colunas parecidas aqui aparecem como células quentes lá.

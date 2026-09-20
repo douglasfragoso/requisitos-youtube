@@ -1,0 +1,8 @@
+#### O que é
+Métricas de qualidade recomputadas variando o nº de keywords avaliadas
+(top-10 → top-100) — teste de robustez da avaliação, não do modelo.
+
+#### Como ler
+- Curvas estáveis = a conclusão não depende do recorte de keywords; o valor reportado no site é C_v @ top-10 [@roder2015cv].
+- Métrica que NÃO varia quando deveria (caso FREX no projeto) é red flag de implementação — foi por isso que FREX saiu do relatório.
+- Quedas acentuadas após top-30 indicam tópicos com cauda lexical ruidosa.

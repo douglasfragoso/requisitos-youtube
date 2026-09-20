@@ -1,0 +1,190 @@
+---
+title: "BERTopic — Folha de S. Paulo"
+subtitle: "Run de produção `folha_20260725_203412`"
+run_dir: "../data/output/folha/bertopic/folha_20260725_203412"
+resources:
+  - "../data/output/folha/bertopic/folha_20260725_203412/bertopic_topic_map.html"
+  - "../data/output/folha/bertopic/folha_20260725_203412/bertopic_hierarchy.html"
+  - "../data/output/folha/bertopic/folha_20260725_203412/bertopic_barchart.html"
+  - "../data/output/folha/bertopic/folha_20260725_203412/bertopic_sankey_reduce_topics.html"
+  - "../data/output/folha/bertopic/folha_20260725_203412/bertopic_documents_interactive.html"
+---
+
+::: {.callout-note}
+## Procedência: esta página e o artigo citam runs diferentes
+
+Esta página documenta `folha_20260725_203412`. A **Tabela 2 do artigo REPA** cita
+`folha_20260813_215259`, um re-run de 2026-08-13 sob código idêntico.
+
+Os dois **reproduzem-se até a última casa decimal** em todas as métricas, exceto
+`semantic_coherence` — a única que consulta o Ollama. O que muda são os **nomes
+dos tópicos**: a nomeação por LLM roda sem semente fixa e 15 de 24 rótulos
+mudaram de forma entre os dois runs, embora sejam paráfrases equivalentes.
+
+O run de 08-13 existe porque foi ele que produziu a tabela de robustez por top-N
+usada no artigo. Os CSVs dele estão versionados; os HTMLs interativos abaixo
+continuam sendo os de 07-25.
+:::
+
+## Configuração calibrada
+
+Texto jornalístico longo favorece clusters pequenos e bem delimitados (**EOM**), o oposto da
+configuração vencedora nos tweets (ver [BERTopic — Tweets](bertopic-tweets.qmd)) — evidência de
+que a config estrutural não transfere entre tipos de texto (Camada 1 do sweep, `RESULTADOS_FINAIS.md` §4.1).
+
+| Parâmetro | Valor |
+|---|---|
+| `umap.n_neighbors` | 10 |
+| `hdbscan.min_cluster_size` | 8 |
+| `cluster_selection_method` | eom |
+| `reduce_topics_nr` | 25 (K final = 24) |
+| `reduce_outliers` | c-tf-idf, threshold = 0.15 |
+
+## Métricas do run
+
+| Métrica | Valor |
+|---|---|
+| K tópicos | 24 |
+| C_v (top-10) | 0.504 |
+| Topic Diversity (Dieng) | 0.808 |
+| Exclusividade (c-TF-IDF) | 0.492 |
+| Coerência Semântica | 0.655 |
+| Outliers / Cobertura | 21.8% / 78.2% |
+
+## Achados e ressalvas
+
+**Triangulação com o LDA:** os dois modelos recuperam os mesmos temas (política, covid,
+desmatamento, copa, economia...), mas divergem em coerência: o LDA da Folha atinge C_v 0.657 (ver
+[LDA — Folha](lda-folha.qmd)) contra 0.504 do BERTopic. Em texto jornalístico longo o BoW leva
+vantagem — nos tweets a relação se inverte (ver [Comparação de Modelos](comparacao.qmd)). A
+validação externa contra as 10 editorias originais (ground truth) mostrou macro-temas
+majoritariamente coerentes.
+
+**Trade-off outliers vs. exclusividade:** o BERTopic deixa 21.8% dos documentos sem tópico
+(id = −1) mesmo após `reduce_outliers` — o preço de tópicos mais diversos que o LDA
+(Topic Diversity 0.808 contra 0.770), que atribui 100% dos documentos.
+
+**Ressalvas estruturais remanescentes** (de clustering, não de nomeação — nenhum tópico é
+tópico-lixo):
+
+- **Tópicos de cotidiano-SP** — grab-bags de assuntos da capital (leitos, metrô, energia);
+  catch-all estrutural, interpretar como cotidiano-SP.
+- **Macro com 7 subtópicos** (2.165 documentos) — catch-all do agrupamento hierárquico
+  (`macro_k=10`) no regime `mcs=8/eom`.
+
+## Visualizações
+
+### Mapa de tópicos
+
+{{< include _viz/bertopic/topic_map.qmd >}}
+
+```{=html}
+<iframe src="../data/output/folha/bertopic/folha_20260725_203412/bertopic_topic_map.html"
+        width="100%" height="700" style="border:none;"></iframe>
+```
+
+### Hierarquia
+
+{{< include _viz/bertopic/hierarquia.qmd >}}
+
+```{=html}
+<iframe data-src="../data/output/folha/bertopic/folha_20260725_203412/bertopic_hierarchy.html"
+        width="100%" height="700" style="border:none;"></iframe>
+```
+
+### Keywords por tópico
+
+{{< include _viz/bertopic/keywords.qmd >}}
+
+```{=html}
+<iframe data-src="../data/output/folha/bertopic/folha_20260725_203412/bertopic_barchart.html"
+        width="100%" height="700" style="border:none;"></iframe>
+```
+
+::: {.callout-warning title="⚠️ Texto gerado por IA — pode conter erros" collapse="true"}
+{{< include ../data/output/folha/bertopic/folha_20260725_203412/advisor_viz/keywords.md >}}
+:::
+
+### Sankey `reduce_topics`
+
+{{< include _viz/bertopic/sankey_reduce.qmd >}}
+
+```{=html}
+<iframe data-src="../data/output/folha/bertopic/folha_20260725_203412/bertopic_sankey_reduce_topics.html"
+        width="100%" height="700" style="border:none;"></iframe>
+```
+
+### Documentos no espaço UMAP
+
+{{< include _viz/bertopic/documents_umap.qmd >}}
+
+```{=html}
+<iframe data-src="../data/output/folha/bertopic/folha_20260725_203412/bertopic_documents_interactive.html"
+        width="100%" height="750" style="border:none;"></iframe>
+```
+
+### Evolução temporal
+
+{{< include _viz/bertopic/evolucao_temporal.qmd >}}
+
+::: {layout-ncol=2}
+
+![Evolução temporal dos tópicos]({{< meta run_dir >}}/bertopic_evolucao_temporal.png)
+
+![Heatmap mês × tópico]({{< meta run_dir >}}/bertopic_heatmap_temporal.png)
+
+:::
+
+![Evolução por tópico]({{< meta run_dir >}}/bertopic_evolucao_por_topico.png)
+
+::: {.callout-warning title="⚠️ Texto gerado por IA — pode conter erros" collapse="true"}
+{{< include ../data/output/folha/bertopic/folha_20260725_203412/advisor_viz/evolucao_temporal.md >}}
+:::
+
+### Similaridade entre tópicos
+
+{{< include _viz/bertopic/similaridade_topicos.qmd >}}
+
+![Similaridade de cosseno entre tópicos]({{< meta run_dir >}}/bertopic_heatmap_topicos_cosine.png)
+
+### Tópico × editoria
+
+{{< include _viz/bertopic/topico_categoria.qmd >}}
+
+![Cruzamento tópico × editoria (ground truth externo)]({{< meta run_dir >}}/bertopic_categoria_topico.png)
+
+### Macro-temas
+
+{{< include _viz/bertopic/macro_temas.qmd >}}
+
+![Árvore de macro-temas (Ward sobre embeddings de tópico, macro_k=10)]({{< meta run_dir >}}/bertopic_arvore_macro.png)
+
+### Documentos por tópico
+
+{{< include _viz/bertopic/docs_por_topico.qmd >}}
+
+![Distribuição de documentos por tópico]({{< meta run_dir >}}/bertopic_docs_por_topico.png)
+
+## Figuras de apoio
+
+Clique em qualquer figura para ampliar.
+
+::: {.panel-tabset}
+
+### Wordclouds
+
+![Nuvens de palavras por tópico]({{< meta run_dir >}}/bertopic_wordclouds.png)
+
+### Keywords (grid)
+
+![Grid de keywords por tópico]({{< meta run_dir >}}/bertopic_keywords_grid.png)
+
+### Métricas por tópico
+
+![Heatmap de métricas por tópico]({{< meta run_dir >}}/bertopic_heatmap_metricas.png)
+
+### UMAP estático
+
+![Documentos no espaço UMAP (versão estática)]({{< meta run_dir >}}/bertopic_umap_documents_static.png)
+
+:::

@@ -1,0 +1,9 @@
+#### O que é
+Diagnósticos de seleção de K do STM: C_v [@roder2015cv], heldout likelihood,
+dispersão de resíduos e a fronteira **coerência semântica × exclusividade**
+[@mimno2011coherence; @roberts2019stm] — o gráfico canônico do `searchK`.
+
+#### Como ler
+- Heldout maior e resíduos menores = melhor ajuste; C_v e a fronteira medem interpretabilidade — as duas famílias podem discordar.
+- Na fronteira semcoh × exclus, K melhores ficam no canto superior direito; ganhar exclusividade perdendo muita coerência é troca ruim.
+- Coerência semântica cai quase monotonicamente com K — padrão empírico documentado no `searchK` do pacote `stm` [@roberts2019stm] (a métrica em si é definida por [@mimno2011coherence], que não trata do comportamento em função de K) — ler a fronteira, não a métrica isolada.

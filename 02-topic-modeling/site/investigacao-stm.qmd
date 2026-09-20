@@ -1,0 +1,69 @@
+---
+title: "Investigação de Hiperparâmetros — STM"
+subtitle: "Grid de K com diagnósticos nativos e grid sigma.prior × gamma.prior"
+---
+
+O STM segue o mesmo protocolo de dois estágios do LDA/NMF, mas ganha os
+diagnósticos nativos do pacote `stm` [@roberts2019stm]: heldout likelihood,
+dispersão de resíduos e a fronteira coerência semântica × exclusividade.
+
+## Estágio 1 — Grid de K (C_v + diagnósticos nativos)
+
+{{< include _viz/stm/grid_k_diagnosticos.qmd >}}
+
+::: {layout-ncol=2}
+
+![C_v, heldout e resíduos por K — Folha](../data/output/folha/stm/stm_grid_k_diagnostics.png)
+
+![C_v, heldout e resíduos por K — Tweets](../data/output/tweets_bre2022/stm/stm_grid_k_diagnostics.png)
+
+:::
+
+::: {layout-ncol=2}
+
+![Coerência semântica × exclusividade — Folha](../data/output/folha/stm/stm_grid_semcoh_exclus.png)
+
+![Coerência semântica × exclusividade — Tweets](../data/output/tweets_bre2022/stm/stm_grid_semcoh_exclus.png)
+
+:::
+
+## Estágio 2 — Grid sigma.prior × gamma.prior
+
+Top-5 combinações por C_v, com K fixo no valor pinado de cada corpus.
+
+### Folha de S. Paulo (K = 25)
+
+| sigma.prior | gamma.prior | C_v | bound | iterações |
+|---|---|---|---|---|
+| 0.7 | L1 | 0.6799 | -12,874,531 | 92 |
+| 0.5 | Pooled | 0.6798 | -12,872,673 | 97 |
+| 0.3 | Pooled | 0.6796 | -12,871,657 | 91 |
+| 0.3 | L1 | 0.6796 | -12,871,737 | 90 |
+| 0.7 | Pooled | 0.6795 | -12,874,838 | 91 |
+
+### Tweets BR 2022 (K = 20)
+
+| sigma.prior | gamma.prior | C_v | bound | iterações |
+|---|---|---|---|---|
+| 0.0 | L1 | 0.5725 | -507,770 | 150 |
+| 0.7 | L1 | 0.5720 | -509,588 | 150 |
+| 0.0 | Pooled | 0.5688 | -507,423 | 150 |
+| 0.5 | L1 | 0.5676 | -509,559 | 150 |
+| 0.5 | Pooled | 0.5609 | -509,247 | 150 |
+
+## Pins de hiperparâmetros (2026-07-16)
+
+Os valores vencedores estão fixados em `params.yaml` por corpus
+(`stm_best_k`, `stm_sigma_prior`, `stm_gamma_prior`), o que **desliga os grids**
+nos notebooks — remover as chaves reativa a busca, e os caches continuam
+valendo:
+
+- **Folha:** K = 25, sigma = 0,7, gamma = L1 (run `folha_20260716_162249`, ou o
+  gêmeo `folha_20260716_174430` — a inicialização Spectral é determinística e os
+  dois reproduzem métricas idênticas até a 4ª casa).
+- **Tweets BR 2022:** K = 20, sigma = 0,0, gamma = L1 (run canônico
+  `tweets_bre2022_20260716_175301` — **não** o `…161613`, que rodou sob o teto
+  antigo `max_em_its=150`, parou sem convergir e subestimou o C_v em 0,016).
+
+Fonte dos dados: `stm_metrics.csv`, `stm_grid_k_diagnostics.csv` e
+`stm_sigma_gamma_grid.csv`, nos diretórios-base `data/output/<corpus>/stm/`.

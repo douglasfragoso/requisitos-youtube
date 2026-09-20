@@ -1,0 +1,8 @@
+#### O que é
+Mapa intertópico do BERTopic [@grootendorst2022bertopic]: tópicos como círculos
+num plano 2D derivado dos embeddings, área ∝ tamanho do tópico.
+
+#### Como ler
+- Proximidade = similaridade semântica dos embeddings de tópico (não só vocabulário, como no pyLDAvis).
+- Aglomerados de círculos antecipam os macro-temas da árvore hierárquica.
+- Círculos pequenos e isolados são nichos — cruzar com docs_por_topico para ver se têm massa.

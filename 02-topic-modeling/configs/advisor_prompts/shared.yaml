@@ -1,0 +1,132 @@
+# Fragmentos compartilhados, injetados nos templates por _advisor.build_advisor_messages.
+eval_metrics: |
+  MÉTRICAS DE AVALIAÇÃO (colunas que um sweep real reporta por combinação; seleção roda
+  hoje só na seed 42, protocolo pós-17/08/2026):
+  - NPMI (Bouma 2009): coerência por co-ocorrência DIRETA de palavras, janela de 10 — é
+    o eixo que DECIDE a coerência em BERTopic, LDA e NMF, sempre por fronteira de Pareto
+    NPMI×Diversity (STM é EXCEÇÃO — ver linha própria abaixo). C_v é reportado ao lado,
+    NUNCA arbitra.
+  - C_v (Röder et al.): coerência por co-ocorrência INDIRETA (vetor de NPMIs, janela de
+    110, comparados por cosseno) — DIFERENTE do NPMI, não uma variação dele. Sempre
+    reportado ao lado do NPMI; nos quatro braços, NUNCA decide sozinho.
+  - STM: o grid de K decide por 'semantic_coherence' × 'exclusivity_stm' (Roberts et
+    al., convenção nativa do pacote stm/searchK) mais Diversity — NÃO por NPMI nem por
+    C_v; os dois continuam computados/reportados quando presentes, mas nenhum decide no
+    STM. 'semantic_coherence' é OUTRA métrica que C_v (Mimno et al., calculada em R): é
+    negativa, quanto mais próxima de 0 melhor, e pode piorar enquanto C_v melhora — não
+    é contradição. NUNCA chame C_v de "coerência semântica".
+  - Diversity (Topic Diversity, Dieng et al.): proporção de palavras únicas entre
+    tópicos — segundo eixo do Pareto em BERTopic/LDA/NMF, e parte da fronteira do STM.
+  - Cobertura: fração de documentos com pelo menos um tópico atribuído. LDA e STM = 1,0
+    sempre (todo documento recebe distribuição completa — constante, não métrica de
+    qualidade nesses dois). BERTopic: SEMPRE porta de admissibilidade e eixo de
+    desempate (HDBSCAN sempre produz outliers). NMF: porta CONDICIONAL no grid
+    kappa×minimum_probability — só decide se cair abaixo de ~100% em algum ponto da
+    grade; se ficar ~100% em toda a grade, é vácua e só se reporta.
+  - Exclus: exclusividade via c-TF-IDF (BERTopic) ou nativa sobre a matriz
+    tópico-palavra (LDA/NMF/STM) — sempre secundária/reporte, nunca decide.
+  - FREX (Bischof & Airoldi / Roberts et al.): média harmônica de frequência e
+    exclusividade — sempre secundária/reporte, nunca decide.
+  - Stability (estabilidade Jaccard entre seeds): REMOVIDA do protocolo em 17/08/2026 —
+    a seleção roda hoje só na seed 42; não há mais restrição nem reporte de estabilidade
+    entre seeds em nenhum braço. Se aparecer numa evidência de run anterior a essa data,
+    é resíduo histórico: não cite como se decidisse algo hoje, nem peça essa métrica
+    numa retrospectiva.
+  A taxa de outliers (outlier_pre/outlier_post) é DIAGNÓSTICO à parte, NÃO métrica de
+  qualidade a maximizar. NÃO existe coluna 'composite' única, e o vencedor NÃO emerge de
+  ponderar/somar métricas: vem de restrições de admissibilidade declaradas (ex.:
+  K∈[9,15]) + fronteira de Pareto (os eixos que decidem em cada braço, acima) +
+  desempate declarado (cobertura, ou menor K, conforme o braço). É a evidência numérica
+  que decide, nunca sua opinião sem dados — mas a decisão é por restrição+Pareto, nunca
+  por escore único.
+output_contract: |
+  FORMATO DE SAÍDA (exato, nesta ordem — sem texto fora dessa estrutura além da prosa
+  indicada):
+  ```yaml proposal
+  round: {{ROUND}}
+  target_layer: structure|granularity|outliers|macro|lda_k|lda_priors|nmf_k|nmf_hparams|stm_k|stm_hparams|final
+  params_patch:
+    <caminho.exato.do.params.yaml>: <valor>
+  sweep_grid:
+    <chave de evaluation>: <valor>   # opcional
+  rationale_short: "<uma linha>"
+  ```
+  ## Pré-análise
+  <prosa: diagnóstico primeiro, decisão depois>
+  params_patch vs. sweep_grid — NÃO confunda os dois:
+  - params_patch = SOMENTE os caminhos/valores de params.yaml a APLICAR agora (ex.:
+    `lda.k_range: [8,12,15]`, ou um override por corpus). NÃO é onde entram grades de
+    `evaluation.*`, a menos que você esteja literalmente mudando esse valor de config.
+  - sweep_grid = as chaves `evaluation.*` a LIGAR/rodar na próxima varredura. Para
+    ativar um sweep, ponha aqui o toggle (ex.: `evaluation.run_param_sweep: true`)
+    junto da grade (ex.: `evaluation.param_sweep_min_samples: [1,5,10]`).
+  Regra: nunca repita a mesma chave nos dois blocos; nunca coloque uma grade
+  `evaluation.param_sweep_*` dentro de params_patch — esse bloco é só o valor final a
+  aplicar, não uma grade, e o código rejeita tipos errados ali.
+  Regras adicionais: use EXATAMENTE os caminhos da lista de CAMINHOS PERMITIDOS —
+  qualquer outro caminho é rejeitado. NUNCA proponha evaluation.param_sweep_macro_k (é
+  inerte no projeto). O bloco ```yaml proposal``` e a seção ## Pré-análise são
+  obrigatórios; nunca omita nenhum dos dois.
+
+viz_audit_contract: |
+  FORMATO DE SAÍDA (exato): para CADA slug listado, uma seção iniciada por uma linha
+  contendo apenas '## <slug>' (o slug exato, sem título extra), seguida de 1-3
+  parágrafos curtos de prosa em PT-BR. Sem YAML, sem blocos de código, sem texto fora
+  das seções, sem seções extras.
+  CONTEÚDO de cada seção: (1) leitura objetiva do que os DADOS mostram nessa
+  visualização, citando números das evidências; (2) padrões, contrastes ou anomalias
+  dignos de nota; (3) UMA pergunta ou hipótese para a interpretação humana (nunca
+  conclusão fechada). NUNCA invente valores: se a evidência não cobre a visualização,
+  escreva apenas '(dados não disponíveis nesta rodada)'.
+  Notação numérica: use SEMPRE vírgula decimal (convenção PT-BR — ex. '0,62',
+  '17,3%'), nunca ponto decimal, em TODO número da prosa, inclusive percentuais.
+  Proibido reaproveitar evidência de OUTRA métrica: use só o dado ESPECÍFICO da
+  visualização listada, nunca um proxy tematicamente parecido (ex.: ranking de
+  exclusividade para falar de similaridade par-a-par). Faltando o dado específico,
+  a seção inteira é '(dados não disponíveis nesta rodada)', mesmo com métrica
+  correlata disponível.
+  DISCIPLINA NUMÉRICA — o bloco 'FATOS DERIVADOS' é a ÚNICA fonte de comparação:
+  - Quando a evidência de uma seção trouxer 'FATOS DERIVADOS', esses valores já
+    foram calculados em pandas e estão CORRETOS. Toda afirmação comparativa —
+    superlativo ('a maior', 'a mais concentrada', 'o pico'), ordinal ('o 3º',
+    'seguido por'), mínimo/máximo de uma coluna, e o par tópico↔valor — tem que
+    ser COPIADA de lá. NÃO recalcule a partir da tabela crua e NÃO reordene: a
+    tabela está ali só para os valores de célula que a prosa também cita.
+  - Ao citar um par tópico↔valor, copie os DOIS da MESMA linha do bloco. Nunca
+    combine o rótulo de uma linha com o número de outra, mesmo que sejam
+    vizinhas ou pareçam relacionadas — releia a linha inteira antes de escrever.
+  - Ao juntar VÁRIOS termos numa mesma afirmação ('X e Y são mais fortes no
+    tópico N', 'A, B e C aparecem em T3'), confirme nos FATOS DERIVADOS que
+    TODOS eles têm o mesmo tópico. Se um deles tiver outro, escreva frases
+    separadas — agrupar por conveniência de escrita é o que transforma dois
+    fatos certos numa frase errada.
+  - Quantidade ('aparece em N tópicos', 'pelo menos N') só pode ser escrita se a
+    contagem estiver nos FATOS DERIVADOS. Não conte itens de uma lista nem
+    estime — se a contagem não estiver pronta, cite os tópicos que a evidência
+    nomeia, sem totalizar.
+  - Comparação que NÃO estiver nos FATOS DERIVADOS: não afirme. Sem o fato
+    pronto, descreva sem hierarquizar ('X aparece com 23,4%') em vez de arriscar
+    ('X é o maior'). Frase sem superlativo é preferível a superlativo errado.
+  - Tabela LARGA (matriz tópico×palavra, dezenas de colunas) SEM bloco de FATOS
+    DERIVADOS: é PROIBIDO apontar o maior/menor peso de uma linha ou de uma
+    coluna a partir da tabela crua. Cite só o valor pontual do termo ('o termo X
+    tem peso 0,032 no tópico T0'), nunca 'o maior peso de T0 é X' nem 'T0 tem o
+    peso mais alto para X'.
+  - Termo que aparece nas keywords de um só tópico da lista NÃO é 'exclusivo'
+    nem 'único' desse tópico: a lista é o top-N por tópico, não a distribuição
+    completa — o termo pode existir com peso menor em outros tópicos, que você
+    não recebeu. Proibido 'exclusivo', 'único', 'só aparece em' para termos;
+    escreva 'X está entre as keywords do tópico N'.
+  - Correlação entre colunas: proibido escrever 'correlação' (direta, inversa,
+    notável) ou 'tendência' sem um coeficiente já calculado na evidência (coluna
+    tipo r/rho/correlation). Citar 2-3 linhas extremas não é calcular correlação.
+    A mesma regra vale para descrever uma SÉRIE (ex.: C_v por K) como 'sobe
+    progressivamente', 'de forma consistente' ou 'monotonicamente': só use essa
+    linguagem se os FATOS DERIVADOS afirmarem que a série é monotônica. Havendo
+    qualquer ponto fora de ordem, cite só o extremo e a faixa — nunca a forma da
+    curva inteira.
+  - Arredonde, nunca trunque: 0,4286 vira '0,429' (nunca '0,428'). Número que já
+    vier pronto nos FATOS DERIVADOS deve ser copiado dígito a dígito, sem
+    recortar casas.
+  - Concentração = a MAIOR fatia da linha é alta; dispersão = as fatias são
+    parecidas entre si. Os FATOS DERIVADOS já dizem qual linha é cada coisa.

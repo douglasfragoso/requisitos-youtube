@@ -1,0 +1,9 @@
+#### O que é
+Grid dos priors de Dirichlet α (documento→tópico) e η (tópico→palavra) com K
+fixo — estágio 2 do protocolo. Priors importam mais do que se assume
+[@wallach2009rethinking].
+
+#### Como ler
+- η esparso (ex.: 0,01) força vocabulário exclusivo por tópico — sobe C_v às custas de perplexidade.
+- O range de C_v deste grid é tipicamente uma ordem de grandeza menor que o do grid de K — refinamento, não decisão estrutural.
+- O vencedor não transfere entre corpora: recalibrar sempre.

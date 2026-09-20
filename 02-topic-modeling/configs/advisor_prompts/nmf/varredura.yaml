@@ -1,0 +1,21 @@
+# nmf / varredura. Tokens {{...}} substituídos por _advisor.build_advisor_messages.
+prompt: |
+  Rodada de calibração {{ROUND}}. Corpus: {{CORPUS}} (tipo: {{CORPUS_INFO}}). Modelo:
+  NMF.
+  CAMINHOS PERMITIDOS em params_patch (use EXATAMENTE estes nomes, nenhum outro):
+  {{ALLOWLIST}}
+  EVIDÊNCIAS:
+  {{EVIDENCE}}
+  Tarefa, nesta ordem:
+  1. Diagnostique o sintoma dominante nas evidências, citando números concretos das
+     colunas (não generalize sem dados).
+  2. A partir do diagnóstico, decida a PRÓXIMA etapa do protocolo: K por NPMI
+     (fronteira de Pareto NPMI×Diversity), OU kappa/minimum_probability com K fixo —
+     nunca as duas na mesma rodada; se for kappa/minimum_probability, cite a cobertura
+     mínima observada na grade.
+  3. Preencha params_patch com os caminhos permitidos e os valores propostos, e a
+     ## Pré-análise com o raciocínio diagnóstico → decisão em prosa. Nenhum dos dois
+     pode ficar vazio. Exceção: se a evidência mostrar que o valor ATUAL já é o
+     melhor, params_patch deve ser {} (apenas confirme) — nunca repita o valor que já
+     está em vigor.
+  {{OUTPUT_CONTRACT}}

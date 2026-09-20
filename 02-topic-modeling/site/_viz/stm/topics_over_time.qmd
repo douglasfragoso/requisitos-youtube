@@ -1,0 +1,8 @@
+#### O que é
+Contagem observada de documentos por tópico dominante em cada mês — a série
+temporal empírica, complementar à prevalência estimada.
+
+#### Como ler
+- Picos isolados = eventos (debate, escândalo, jogo); padrões recorrentes = sazonalidade.
+- Tópicos persistentes vs. episódicos separam agenda estrutural de agenda de ocasião.
+- Ler junto com a prevalência estimada: se o pico só existe aqui, pode ser volume do corpus, não mudança de proporção.

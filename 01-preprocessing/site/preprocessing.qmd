@@ -1,0 +1,76 @@
+---
+title: "Pré-processamento e Caracterização dos Corpora"
+---
+
+## Os dois corpora
+
+O projeto compara dois corpora PT-BR contrastantes em registro e tamanho de documento — a
+mesma variação sistemática que motiva a pergunta de pesquisa (BERTopic × LDA por tipo de
+texto). A tabela resume o caminho de cada um até o `corpus_limpo.csv` versionado consumido
+pelo módulo 03:
+
+| | Folha de S. Paulo | Tweets BR Eleições 2022 |
+|---|---|---|
+| Registro | Jornalístico, formal, longo | Social, informal, curto |
+| Fonte | Artigos brutos (2024) | Zenodo `14834749` |
+| Volume bruto | ~166k artigos | 200k tweets |
+| Amostragem | 5k (amostra aleatória, seed=42) | 20k amostrados → **8.811** após dedup de RT + `langdetect` |
+| Ground truth externo | 10 editorias balanceadas | — |
+
+## Decisões de pré-processamento por corpus
+
+Ambos os corpora passam pelo mesmo pipeline de 7 estágios (carga, dedup, limpeza textual,
+filtro de idioma, filtro de comprimento, atribuição de `post_id`, exportação):
+
+| Decisão | Folha (texto longo) | Tweets (texto curto) |
+|---|---|---|
+| Emojis | Demojizados e injetados como tokens no texto | Demojizados no preprocessing (viram keywords legítimas, ex. tópico de coração/apoio) |
+| Stopwords | Iterativas — descobertas nos rankings c-TF-IDF (ex. `quot`, `seta`), não pré-definidas | Hashtags e handles **mantidos** — carregam a semântica do evento eleitoral |
+
+
+## Atrito no pipeline dos tweets
+
+O corpus de tweets sofreu atrito severo entre a amostragem inicial e o corpus final: a
+deduplicação de retweets combinada ao filtro de idioma (`langdetect`, aplicado a documentos
+com 5+ palavras) descartou entre **40% e 70% dos tweets por mês**. Com a meta original de
+2.000 tweets amostrados por categoria/mês, o corpus final teria ficado com apenas 4.240
+tweets — insuficiente para uma modelagem de tópicos robusta.
+
+A solução foi elevar a sobre-amostragem (`n_per_category`) de **2.000 para 5.000** por
+mês/categoria antes de aplicar dedup e filtro de idioma, absorvendo o atrito esperado. O
+resultado final foi um corpus de **8.811 tweets** distribuídos em 4 meses de cobertura
+(agosto, outubro, novembro e dezembro de 2022 — setembro está ausente do próprio dataset
+bruto do Zenodo, não é um filtro do pipeline), documentado honestamente como limitação da
+análise temporal.
+
+## Distribuições
+
+Clique em qualquer figura para ampliar.
+
+::: {.panel-tabset}
+
+### Folha
+
+::: {layout-ncol=3}
+
+![Caracteres por documento](../data/output/folha/folha_20260628_185652/preproc_char_distribution.png)
+
+![Idiomas detectados](../data/output/folha/folha_20260628_185652/preproc_language_distribution.png)
+
+![Contagem de palavras por documento](../data/output/folha/folha_20260628_185652/preproc_word_count_distribution.png)
+
+:::
+
+### Tweets BR 2022
+
+::: {layout-ncol=3}
+
+![Caracteres por documento](../data/output/tweets_bre2022/tweets_bre2022_20260629_215159/preproc_char_distribution.png)
+
+![Idiomas detectados](../data/output/tweets_bre2022/tweets_bre2022_20260629_215159/preproc_language_distribution.png)
+
+![Contagem de palavras por documento](../data/output/tweets_bre2022/tweets_bre2022_20260629_215159/preproc_word_count_distribution.png)
+
+:::
+
+:::
