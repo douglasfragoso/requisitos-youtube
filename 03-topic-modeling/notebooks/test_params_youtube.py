@@ -23,13 +23,28 @@ def test_preprocessing_params_so_tem_corpus_youtube():
     assert p["default_corpus"] == "youtube"
 
 
-def test_topic_modeling_params_so_tem_youtube_doc():
+def test_topic_modeling_params_tem_youtube_doc_e_youtube_sent():
     p = load_params()
-    assert list(p["corpora"]) == ["youtube_doc"]
+    assert list(p["corpora"]) == ["youtube_doc", "youtube_sent"]
     assert p["default_corpus"] == "youtube_doc"
     for k in ("bertopic", "lda", "nmf"):
         assert k not in p, f"bloco {k} deveria ter saido"
     assert "stm" in p and "evaluation" in p and "advisor" in p
+
+
+def test_youtube_sent_tem_chaves_do_template_stm():
+    _, c = get_corpus_config(load_params(), "youtube_sent")
+    assert c["text_column"] == "sentence"
+    assert c["post_id_column"] == "sent_id"
+    assert c["covariates"] == ["product_category"]
+    assert c["stm_prevalence_formula"] == "~ product_category"
+    assert c["stm_min_tokens_per_doc"] == 5
+    assert c["stm_no_below"] == 20
+    assert c["stm_no_above"] == 0.5
+    assert c["stm_k_range"] == [10, 15, 20, 25, 30, 35, 40]
+    assert c["stm_grid_sample_size"] == 25000
+    assert c.get("stm_best_k") is None
+    assert c["language"] == "en"
 
 
 def test_youtube_doc_tem_chaves_do_template_stm():

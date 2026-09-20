@@ -34,6 +34,37 @@ corpora:
     stm_best_k: 12  # maior C_v; demais metricas e menor K so desempatem
     language: en
 
+  youtube_sent:
+    description: "transcricoes de reviews de produtos no YouTube, EN, nivel sentenca"
+    text_column: sentence
+    post_id_column: sent_id
+    covariates:
+      - product_category
+    stopwords_emojis:
+      - "yeah"
+      - "okay"
+      - "gonna"
+      - "wanna"
+      - "gotta"
+      - "kind"
+      - "lot"
+      - "thing"
+      - "stuff"
+      - "guy"
+      - "video"
+      - "channel"
+      - "subscribe"
+      - "like"
+    token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
+    stm_prevalence_formula: "~ product_category"
+    stm_min_tokens_per_doc: 5
+    stm_no_below: 20
+    stm_no_above: 0.5
+    stm_k_range: [10, 15, 20, 25, 30, 35, 40]
+    stm_grid_sample_size: 25000
+    stm_best_k: null
+    language: en
+
 # =============================================================================
 default_corpus: youtube_doc
 seed: 42
