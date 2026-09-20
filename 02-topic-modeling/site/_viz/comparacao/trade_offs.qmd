@@ -1,9 +1,0 @@
-#### O que é
-Dispersão cobertura × exclusividade: o eixo em que se espera o trade-off
-estrutural — modelos probabilísticos (LDA/NMF/STM) atribuem tópico a todo
-documento, enquanto o BERTopic deixa outliers em troca de tópicos mais nítidos.
-
-#### Como ler
-- Canto superior direito (cobertura E exclusividade altas) é o ideal; a distância de cada modelo a ele resume seu compromisso.
-- Pontos do mesmo corpus (mesmo marcador) são a comparação válida.
-- **Nestes runs o trade-off não se confirma.** O STM tem exclusividade maior que a do BERTopic nos dois corpora (Folha 0.528 vs. 0.492; tweets 0.815 vs. 0.778) mantendo cobertura de 100% — ou seja, o BERTopic abre mão de 21,8% (Folha) e 16,5% (tweets) dos documentos sem obter, em troca, os tópicos mais exclusivos. A justificativa para escolhê-lo tem de vir de outro critério que não este eixo.

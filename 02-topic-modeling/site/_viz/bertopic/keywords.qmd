@@ -1,9 +1,0 @@
-#### O que é
-Termos com maior score c-TF-IDF por tópico [@grootendorst2022bertopic] —
-TF-IDF por classe: o "documento" é a concatenação dos docs do tópico, então o
-score já embute exclusividade frente aos demais tópicos.
-
-#### Como ler
-- Diferente de P(palavra|tópico) do LDA: um termo frequente no corpus inteiro pode ter c-TF-IDF baixo em todo tópico.
-- Keywords genéricas no topo (ex. verbos comuns) indicam stopwords de domínio faltantes — realimentar o vectorizer.
-- Wordclouds e barchart mostram o mesmo ranking em codificações diferentes (tamanho vs. posição).

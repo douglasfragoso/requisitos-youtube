@@ -101,10 +101,18 @@ prepare_stm_input()                  texto = join dos lemas (mesmo BoW do C_v) +
    │
    ▼
 grid_search_k_stm()   [R grid_k]     1 STM por K, init Spectral, split heldout interno;
-                                     Python pontua C_v no BoW gensim; R devolve heldout
-                                     likelihood e dispersão de resíduos por K
-   │                                 → BEST_K = pico de C_v (diagnósticos nativos só apoiam:
-   │                                   sobem monotonicamente com K e sozinhos escolheriam K=30+)
+                                     R devolve semantic_coherence, exclusivity_stm, heldout
+                                     likelihood e dispersão de resíduos; Python adiciona C_v
+                                     e diversity → stm_grid_k_diagnostics.csv
+   │
+   ▼
+_selecao.py stm <corpus>             protocolo 2026-08-17: (1) admissibilidade — K dentro da
+                                     faixa declarada FAIXA_K[corpus]; (2) fronteira de Pareto
+                                     semantic_coherence × exclusivity_stm × diversity (Roberts
+                                     et al.); (3) desempate declarado = menor K.
+                                     C_v é REPORTADO ao lado, nunca decide. Heldout/resíduos
+                                     sobem monotonicamente com K e sozinhos escolheriam K=30+.
+   │                                 → pinar o K escolhido em params.yaml (stm_best_k)
    ▼
 grid_search_stm_hparams() [R grid_hparams]
                                      K fixo; sigma.prior {0, 0.3, 0.5, 0.7} × gamma.prior {Pooled, L1}
@@ -127,7 +135,8 @@ métricas + export                    C_v, exclusividade c-TF-IDF, topic diversi
 
 | Parâmetro | youtube_doc | youtube_sent | Nota |
 |-----------|-------------|--------------|------|
-| `k_range` | 5–30 | 10–40 | grid com passo variável (3,5,7,8,10,12,15,20,25,30,…) |
+| grid de K | 3,5,7,8,10,12,15,20,25,30 | 10,15,20,25,30,40 | 1 fit R por K |
+| `FAIXA_K` (admissibilidade, `_selecao.py`) | (8, 25) | (10, 40) | declarada antes de olhar a grade; ajustar com justificativa substantiva, nunca post hoc |
 | `no_below` / `no_above` | 5 / 0.5 | 20 / 0.5 | sentença: corpus grande, cortar raros |
 | `stm_min_tokens_per_doc` | 200 | 5 | STM degrada com docs curtos; sentença já é curta por natureza |
 | `max_em_its` | 300 | 300 | `em_iterations == max_em_its` no metrics = teto batido, não convergência |
@@ -136,8 +145,10 @@ métricas + export                    C_v, exclusividade c-TF-IDF, topic diversi
 | init / seed | Spectral / 42 | Spectral / 42 | determinístico: reprodutibilidade exata substitui multi-seed |
 
 **Regras fixas do protocolo**
-1. K é escolhido por C_v (comparável entre modelos e corpora); heldout/resíduos são apoio.
-2. Grid de hiperparâmetros só depois de fixar K; spread esperado ~0,005–0,015 em C_v.
+1. K é escolhido por `_selecao.py` (Pareto semantic_coherence × exclusivity_stm × diversity,
+   faixa declarada, desempate = menor K); C_v e heldout/resíduos são reporte, não decisão.
+2. Grid de hiperparâmetros (sigma × gamma, por C_v) só depois de fixar K; spread esperado
+   ~0,005–0,015 em C_v.
 3. Vocabulário do STM = BoW lematizado do C_v, por construção (o R não re-tokeniza).
 4. Covariável com NA é erro: `dropna` antes de lematizar para manter alinhamento df ↔ tokens.
 5. Após calibrar, pinar `stm_best_k`, `stm_sigma_prior`, `stm_gamma_prior` no `params.yaml`

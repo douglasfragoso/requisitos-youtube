@@ -1,9 +1,0 @@
-#### O que é
-Top-10 termos por tópico ordenados pelo peso na matriz H da fatoração
-não-negativa V ≈ W·H [@lee1999nmf]. Pesos NMF são aditivos ("parts-based"):
-cada tópico é literalmente uma soma de partes do vocabulário.
-
-#### Como ler
-- Queda abrupta após os 2–3 primeiros termos = tópico dominado por âncoras fortes; queda suave = tema difuso.
-- Termos repetidos entre tópicos derrubam a exclusividade — cruzar com o heatmap de similaridade.
-- A coerência dos descritores do NMF costuma rivalizar com a do LDA em corpora de nicho [@ocallaghan2015nmf].

@@ -1,8 +1,0 @@
-#### O que é
-Documentos projetados em 2D por UMAP [@mcinnes2018umap] — a mesma redução que
-alimenta o clustering — coloridos por tópico; cinza = outliers (id −1).
-
-#### Como ler
-- Ilhas densas monocromáticas = clusters que o HDBSCAN [@campello2013hdbscan] recuperou com folga.
-- Muita cor misturada dentro de uma ilha = fronteira de tópicos instável naquela região semântica.
-- A alegação de que UMAP preserva mais estrutura global que t-SNE [@mcinnes2018umap] não é consenso: trabalho posterior atribui boa parte da diferença observada à inicialização usada (PCA vs. aleatória), não ao algoritmo em si [@kobak2019art]. Na prática, trate igual: não interprete distância entre ilhas distantes como medida confiável de dessemelhança.

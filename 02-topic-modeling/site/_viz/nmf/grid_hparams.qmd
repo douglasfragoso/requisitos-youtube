@@ -1,9 +1,0 @@
-#### O que é
-Grid `kappa` (passo de gradiente da atualização de W) × `minimum_probability`
-(corte inferior dos pesos reportados) com K fixo — o análogo NMF do grid α×η
-do LDA, pontuado por C_v [@roder2015cv].
-
-#### Como ler
-- kappa alto acelera a convergência mas pode instabilizar a fatoração; kappa baixo converge devagar e mais estável.
-- O range de C_v deste grid é marginal comparado ao grid de K — mesmo padrão do LDA.
-- `minimum_probability` afeta o que entra em θ, não o treino — sensibilidade alta aqui indica massa de probabilidade rasa nos tópicos.

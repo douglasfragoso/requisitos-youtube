@@ -1,9 +1,0 @@
-#### O que é
-Séries mensais dos tópicos (contagem por tópico dominante): linhas top-N,
-heatmap mês × tópico e painéis por tópico com suavização — a leitura dinâmica
-do modelo [@grootendorst2022bertopic].
-
-#### Como ler
-- Picos sincronizados entre tópicos apontam um evento externo comum (ex.: turnos da eleição).
-- No heatmap, linhas com massa concentrada em 1–2 meses = tópicos episódicos; linhas uniformes = agenda permanente.
-- Cautela com o último mês do corpus (frequentemente parcial).

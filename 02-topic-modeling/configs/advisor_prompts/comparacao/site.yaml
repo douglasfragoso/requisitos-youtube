@@ -1,9 +1,0 @@
-# comparacao / site. Tokens {{...}} substituídos por _advisor.build_viz_audit_messages.
-prompt: |
-  Fase SITE — pré-análise da página de TRIANGULAÇÃO (comparação dos 4 modelos).
-  Corpus: {{CORPUS}} ({{CORPUS_INFO}}).
-  VISUALIZAÇÕES (slugs, na ordem):
-  {{VIZ_LIST}}
-  EVIDÊNCIAS (métricas consolidadas dos 8 runs de produção):
-  {{EVIDENCE}}
-  {{VIZ_AUDIT_CONTRACT}}

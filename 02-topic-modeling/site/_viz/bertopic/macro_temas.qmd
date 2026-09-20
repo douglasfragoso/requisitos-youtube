@@ -1,9 +1,0 @@
-#### O que é
-Árvore de macro-temas: clustering Ward sobre os embeddings dos tópicos
-(centróides ponderados por c-TF-IDF), cortado em `macro_k` grupos — segundo
-nível de granularidade para apresentação.
-
-#### Como ler
-- Macros equilibrados (poucos singletons, nenhum grupo gigante) indicam `macro_k` bem escolhido — critério da Camada 4 da investigação.
-- Um macro catch-all é aceitável se documentado; mais de um sugere `macro_k` baixo demais.
-- Validar externamente: macros devem mapear em rótulos conhecidos (editorias) quando existirem.

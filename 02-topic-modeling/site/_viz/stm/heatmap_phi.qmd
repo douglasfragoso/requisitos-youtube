@@ -1,9 +1,0 @@
-#### O que é
-A matriz φ do STM — exp(β), isto é, P(palavra | tópico) [@roberts2014stm]. O
-heatmap recorta as top palavras por tópico e revela a "assinatura lexical" de
-cada um.
-
-#### Como ler
-- Linhas com poucas células escuras = tópico concentrado em poucas palavras (bom sinal de coesão).
-- Colunas escuras em vários tópicos = palavra ambígua entre temas; se recorrente, é candidata a stopword de domínio.
-- No STM a β é estimada condicionada às covariáveis de prevalência — ler junto com o forest plot antes de concluir que um termo "define" o tópico.

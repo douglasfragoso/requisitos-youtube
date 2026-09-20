@@ -1,8 +1,0 @@
-#### O que é
-Similaridade de cosseno entre os vetores tópico-palavra de todos os pares de
-tópicos — diagnóstico direto de redundância temática.
-
-#### Como ler
-- Células quentes fora da diagonal = pares candidatos a fusão ou a renomeação (mesmo tema em ângulos diferentes).
-- Matriz majoritariamente fria = boa diversidade; consistente com Topic Diversity alta [@dieng2020topic].
-- Blocos de tópicos mutuamente similares sugerem um macro-tema que o K escolhido subdividiu.

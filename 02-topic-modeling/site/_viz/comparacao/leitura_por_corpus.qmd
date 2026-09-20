@@ -1,8 +1,0 @@
-#### O que é
-Síntese qualitativa da triangulação: qual modelo lê melhor cada tipo de texto
-e por quê — o resultado central do projeto.
-
-#### Como ler
-- Convergência de temas entre modelos independentes é a validação mais forte (triangulação metodológica).
-- BoW favorece o vocabulário rico da Folha; embeddings capturam hashtags/gírias dos tweets — a inversão de ranking entre corpora é o achado, não um erro.
-- STM adiciona o eixo covariável (tempo/editoria) que os demais só veem a posteriori.

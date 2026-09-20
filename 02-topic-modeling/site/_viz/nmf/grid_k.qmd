@@ -1,9 +1,0 @@
-#### O que é
-Curva de coerência C_v [@roder2015cv] em função do número de tópicos K — o
-estágio 1 do protocolo de calibração do NMF, idêntico ao do LDA (K é a alavanca
-dominante).
-
-#### Como ler
-- O K escolhido deve estar num pico ou plateau da curva; picos interiores genuínos (a métrica cai dos dois lados) são evidência forte.
-- Plateau largo = robustez da escolha; a decisão pode então usar critérios qualitativos (granularidade analítica desejada).
-- Diferente do LDA, não há curva de perplexidade aqui: o `gensim.models.Nmf` não expõe `log_perplexity`, então C_v é o único critério quantitativo deste estágio.

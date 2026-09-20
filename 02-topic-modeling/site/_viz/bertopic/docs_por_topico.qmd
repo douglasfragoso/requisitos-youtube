@@ -1,9 +1,0 @@
-#### O que é
-Documentos por tópico final, incluindo a fração de outliers — no BERTopic a
-cobertura é parcial por design: HDBSCAN não força atribuição
-[@campello2013hdbscan].
-
-#### Como ler
-- A taxa de outliers é diagnóstico, não métrica a zerar: reatribuição forçada contamina o c-TF-IDF (ver investigação, Camada 3).
-- T0 muito maior que os demais em texto curto costuma ser o "tema viral" do corpus — checar se é coeso ou catch-all.
-- Comparar com LDA/NMF/STM (100% de cobertura): é o trade-off central da triangulação.
