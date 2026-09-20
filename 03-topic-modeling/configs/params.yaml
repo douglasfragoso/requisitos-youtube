@@ -1,0 +1,118 @@
+# =============================================================================
+# 03-topic-modeling — YouTube STM configuration
+# =============================================================================
+
+corpora:
+
+  youtube_doc:
+    subdir: youtube
+    description: "transcricoes de reviews de produtos no YouTube, EN, nivel documento"
+    text_column: message
+    date_column: upload_date
+    post_id_column: post_id
+    covariates:
+      - date
+      - product_category
+    stopwords_emojis:
+      - "yeah"
+      - "okay"
+      - "gonna"
+      - "wanna"
+      - "gotta"
+      - "kind"
+      - "lot"
+      - "thing"
+      - "stuff"
+      - "guy"
+      - "video"
+      - "channel"
+      - "subscribe"
+      - "like"
+    token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
+    stm_prevalence_formula: "~ s(as.numeric(as.Date(date))) + product_category"
+    stm_min_tokens_per_doc: 200
+    language: en
+
+  youtube_sent:
+    subdir: youtube_sent
+    description: "sentencas das transcricoes, EN, com polaridade de sentimento"
+    text_column: message
+    date_column: upload_date
+    post_id_column: post_id
+    covariates:
+      - sentiment
+      - product_category
+    stopwords_emojis:
+      - "yeah"
+      - "okay"
+      - "gonna"
+      - "wanna"
+      - "gotta"
+      - "kind"
+      - "lot"
+      - "thing"
+      - "stuff"
+      - "guy"
+      - "video"
+      - "channel"
+      - "subscribe"
+      - "like"
+    token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
+    stm_prevalence_formula: "~ sentiment * product_category"
+    stm_min_tokens_per_doc: 5
+    language: en
+
+# =============================================================================
+default_corpus: youtube_doc
+seed: 42
+
+# === STM ===
+stm:
+  k_range: [5, 30]
+  rscript_path: "Rscript"
+  no_below: 5
+  no_above: 0.5
+  max_em_its: 300
+  timeout_sec: 21600
+
+# === Nomeacao (LLM) ===
+llm:
+  model: "gemma2:2b-instruct-q4_K_M"
+  fallback_model: "qwen3:4b"
+  base_url: "http://localhost:11434"
+  enabled: true
+  timeout_per_topic: 30
+
+# === Avaliacao ===
+evaluation:
+  run_stability: false
+  stability_seeds: [42]
+  kappa_threshold: 0.70
+  top_n_keywords: 10
+  top_n_words_cache: 100
+  top_n_keywords_metrics: 20
+  semantic_coherence_embedding_model: "qwen3-embedding:0.6b"
+  top_n_keywords_llm: 50
+  top_n_keywords_viz: 30
+  top_n_keywords_npmi: 100
+  robustness_top_n_sweep: [10, 15, 20, 25, 30, 50, 100]
+  stm_sigma_prior_grid: [0, 0.3, 0.5, 0.7]
+  stm_gamma_prior_grid: ["Pooled", "L1"]
+
+# === Assessor de calibracao ===
+advisor:
+  enabled: true
+  provider: openai
+  model: "gpt-4.1-mini"
+  base_url: null
+  api_key_env: OPENAI_API_KEY
+  fallback:
+    provider: ollama
+    model: "gemma4:31b"
+    base_url: "https://ollama.com/v1"
+    api_key_env: OLLAMA_API_KEY
+  viz_panel: true
+  max_output_tokens: 4000
+  temperature: 0.2
+  rounds: 3
+  prompts_dir: advisor_prompts

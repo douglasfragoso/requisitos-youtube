@@ -1,50 +1,16 @@
 # Fragmentos compartilhados, injetados nos templates por _advisor.build_advisor_messages.
 eval_metrics: |
-  MÉTRICAS DE AVALIAÇÃO (colunas que um sweep real reporta por combinação; seleção roda
-  hoje só na seed 42, protocolo pós-17/08/2026):
-  - NPMI (Bouma 2009): coerência por co-ocorrência DIRETA de palavras, janela de 10 — é
-    o eixo que DECIDE a coerência em BERTopic, LDA e NMF, sempre por fronteira de Pareto
-    NPMI×Diversity (STM é EXCEÇÃO — ver linha própria abaixo). C_v é reportado ao lado,
-    NUNCA arbitra.
-  - C_v (Röder et al.): coerência por co-ocorrência INDIRETA (vetor de NPMIs, janela de
-    110, comparados por cosseno) — DIFERENTE do NPMI, não uma variação dele. Sempre
-    reportado ao lado do NPMI; nos quatro braços, NUNCA decide sozinho.
-  - STM: o grid de K decide por 'semantic_coherence' × 'exclusivity_stm' (Roberts et
-    al., convenção nativa do pacote stm/searchK) mais Diversity — NÃO por NPMI nem por
-    C_v; os dois continuam computados/reportados quando presentes, mas nenhum decide no
-    STM. 'semantic_coherence' é OUTRA métrica que C_v (Mimno et al., calculada em R): é
-    negativa, quanto mais próxima de 0 melhor, e pode piorar enquanto C_v melhora — não
-    é contradição. NUNCA chame C_v de "coerência semântica".
-  - Diversity (Topic Diversity, Dieng et al.): proporção de palavras únicas entre
-    tópicos — segundo eixo do Pareto em BERTopic/LDA/NMF, e parte da fronteira do STM.
-  - Cobertura: fração de documentos com pelo menos um tópico atribuído. LDA e STM = 1,0
-    sempre (todo documento recebe distribuição completa — constante, não métrica de
-    qualidade nesses dois). BERTopic: SEMPRE porta de admissibilidade e eixo de
-    desempate (HDBSCAN sempre produz outliers). NMF: porta CONDICIONAL no grid
-    kappa×minimum_probability — só decide se cair abaixo de ~100% em algum ponto da
-    grade; se ficar ~100% em toda a grade, é vácua e só se reporta.
-  - Exclus: exclusividade via c-TF-IDF (BERTopic) ou nativa sobre a matriz
-    tópico-palavra (LDA/NMF/STM) — sempre secundária/reporte, nunca decide.
-  - FREX (Bischof & Airoldi / Roberts et al.): média harmônica de frequência e
-    exclusividade — sempre secundária/reporte, nunca decide.
-  - Stability (estabilidade Jaccard entre seeds): REMOVIDA do protocolo em 17/08/2026 —
-    a seleção roda hoje só na seed 42; não há mais restrição nem reporte de estabilidade
-    entre seeds em nenhum braço. Se aparecer numa evidência de run anterior a essa data,
-    é resíduo histórico: não cite como se decidisse algo hoje, nem peça essa métrica
-    numa retrospectiva.
-  A taxa de outliers (outlier_pre/outlier_post) é DIAGNÓSTICO à parte, NÃO métrica de
-  qualidade a maximizar. NÃO existe coluna 'composite' única, e o vencedor NÃO emerge de
-  ponderar/somar métricas: vem de restrições de admissibilidade declaradas (ex.:
-  K∈[9,15]) + fronteira de Pareto (os eixos que decidem em cada braço, acima) +
-  desempate declarado (cobertura, ou menor K, conforme o braço). É a evidência numérica
-  que decide, nunca sua opinião sem dados — mas a decisão é por restrição+Pareto, nunca
-  por escore único.
+  MÉTRICAS STM
+  - O grid de K decide pela fronteira de Pareto semantic_coherence × exclusivity_stm × Diversity.
+  - C_v, heldout likelihood e residual dispersion são reporte; não decidem K.
+  - Após fixar K, sigma.prior e gamma.prior são comparados pelo C_v.
+  - Nunca proponha stm.rscript_path nem stm.timeout_sec: são configuração de máquina.
+
 output_contract: |
-  FORMATO DE SAÍDA (exato, nesta ordem — sem texto fora dessa estrutura além da prosa
-  indicada):
+  FORMATO DE SAÍDA (exato, nesta ordem):
   ```yaml proposal
   round: {{ROUND}}
-  target_layer: structure|granularity|outliers|macro|lda_k|lda_priors|nmf_k|nmf_hparams|stm_k|stm_hparams|final
+  target_layer: stm_k|stm_hparams|final
   params_patch:
     <caminho.exato.do.params.yaml>: <valor>
   sweep_grid:
@@ -53,20 +19,9 @@ output_contract: |
   ```
   ## Pré-análise
   <prosa: diagnóstico primeiro, decisão depois>
-  params_patch vs. sweep_grid — NÃO confunda os dois:
-  - params_patch = SOMENTE os caminhos/valores de params.yaml a APLICAR agora (ex.:
-    `lda.k_range: [8,12,15]`, ou um override por corpus). NÃO é onde entram grades de
-    `evaluation.*`, a menos que você esteja literalmente mudando esse valor de config.
-  - sweep_grid = as chaves `evaluation.*` a LIGAR/rodar na próxima varredura. Para
-    ativar um sweep, ponha aqui o toggle (ex.: `evaluation.run_param_sweep: true`)
-    junto da grade (ex.: `evaluation.param_sweep_min_samples: [1,5,10]`).
-  Regra: nunca repita a mesma chave nos dois blocos; nunca coloque uma grade
-  `evaluation.param_sweep_*` dentro de params_patch — esse bloco é só o valor final a
-  aplicar, não uma grade, e o código rejeita tipos errados ali.
-  Regras adicionais: use EXATAMENTE os caminhos da lista de CAMINHOS PERMITIDOS —
-  qualquer outro caminho é rejeitado. NUNCA proponha evaluation.param_sweep_macro_k (é
-  inerte no projeto). O bloco ```yaml proposal``` e a seção ## Pré-análise são
-  obrigatórios; nunca omita nenhum dos dois.
+  params_patch só contém valores finais para STM e pins por corpus.
+  sweep_grid só pode conter evaluation.stm_sigma_prior_grid ou
+  evaluation.stm_gamma_prior_grid. Use exatamente os caminhos permitidos.
 
 viz_audit_contract: |
   FORMATO DE SAÍDA (exato): para CADA slug listado, uma seção iniciada por uma linha

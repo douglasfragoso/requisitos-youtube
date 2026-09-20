@@ -1,6 +1,6 @@
-"""Inlined helpers for the 04-topic-modeling notebooks.
+"""Inlined helpers for the 03-topic-modeling notebooks.
 
-This module consolidates what used to live under ``04-topic-modeling/src/``
+This module consolidates what used to live under ``03-topic-modeling/src/``
 (deleted in commit 002f06ac) into a single file co-located with the notebooks
 so that ``from _helpers import ...`` works without any sys.path tweaks.
 
@@ -283,7 +283,7 @@ def load_corpus(input_dir, encoding: str = "utf-8", verbose: bool = True) -> pd.
     ``sim_negative`` além das colunas originais). Cai para ``corpus_limpo.csv``
     (gerado pelo 01-preprocessing) se a versão enriquecida não estiver presente.
 
-    Isso permite que os outputs do 04-topic-modeling (``bertopic_results.csv``,
+    Isso permite que os outputs do 03-topic-modeling (``bertopic_results.csv``,
     ``lda_results.csv``, ``stm_results.csv``) herdem automaticamente a coluna
     ``sentiment`` quando o 03-sentiment tiver rodado antes — sem precisar de
     merge manual posterior.
@@ -2491,7 +2491,7 @@ def sweep_bertopic_grid(
 # ===========================================================================
 """LDA pipeline: grid search K, train, extract topics, qualitative report.
 
-Corpus-agnostic. Importado pelos notebooks de 04-topic-modeling.
+Corpus-agnostic. Importado pelos notebooks de 03-topic-modeling.
 """
 
 

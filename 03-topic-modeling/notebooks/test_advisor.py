@@ -22,15 +22,15 @@ def _log_de_uso_isolado(tmp_path, monkeypatch):
 # --- Evolução Task 1: prompts em YAML ----------------------------------------
 def test_load_advisor_prompts_has_all_methods_and_phases():
     prompts = _advisor.load_advisor_prompts()
-    assert set(prompts["methods"]) >= {"bertopic", "lda", "nmf", "stm"}
-    for m in ("bertopic", "lda", "nmf", "stm"):
+    assert set(prompts["methods"]) == {"stm"}
+    for m in ("stm",):
         for key in ("system", "varredura", "final"):
             assert prompts["methods"][m][key].strip(), f"{m}.{key} vazio"
     assert "eval_metrics" in prompts["shared"]
     assert "output_contract" in prompts["shared"]
     # o contrato de saída menciona o bloco yaml e a chave proibida
     assert "yaml proposal" in prompts["shared"]["output_contract"]
-    assert "param_sweep_macro_k" in prompts["shared"]["output_contract"]
+    assert "stm_k" in prompts["shared"]["output_contract"]
 
 
 def test_load_advisor_prompts_tolerates_partial_method_dirs(tmp_path):
@@ -80,7 +80,7 @@ def test_validate_patch_accepts_stm_grid_and_per_corpus_pins():
         "stm.max_em_its": 400,
         "evaluation.stm_sigma_prior_grid": [0, 0.3, 0.5, 0.7],
         "evaluation.stm_gamma_prior_grid": ["Pooled", "L1"],
-        "corpora.folha.stm_best_k": 22,
+        "corpora.youtube_doc.stm_best_k": 22,
         "corpora.folha.stm_sigma_prior": 0.5,
         "corpora.folha.stm_gamma_prior": "Pooled",
     }
@@ -381,7 +381,7 @@ def test_collect_evidence_includes_beta_csv_truncated(tmp_path):
 
 
 # --- Evolução Task 2: build_advisor_messages + select_phase ------------------
-def _ev(corpus="folha", model="lda"):
+def _ev(corpus="youtube_doc", model="stm"):
     return {"corpus": corpus, "model": model, "run_dir": "run_x",
             "csv_snippets": {f"{model}_metrics.csv": "col\n1\n"}, "ledger_rounds": 0}
 
@@ -394,23 +394,23 @@ def test_select_phase_varredura_then_final():
 
 
 def test_build_messages_first_round_has_system_and_user():
-    msgs = _advisor.build_advisor_messages(_ev("folha", "lda"), round_n=1, model_type="lda")
+    msgs = _advisor.build_advisor_messages(_ev("youtube_doc", "stm"), round_n=1, model_type="stm")
     assert [m["role"] for m in msgs] == ["system", "user"]
     sys_low = msgs[0]["content"].lower()
     # system é específico do método (LDA) e cita as métricas de avaliação
-    assert "lda" in sys_low and "alpha" in sys_low and "eta" in sys_low
-    assert "c_v" in sys_low and "diversity" in sys_low and "stability" in sys_low
+    assert "stm" in sys_low and "semantic coherence" in sys_low and "sigma.prior" in sys_low
+    assert "c_v" in sys_low and "diversity" in sys_low and "stability" not in sys_low
     user = msgs[1]["content"]
     # varredura injeta allowlist exato do LDA + evidência + contrato de saída
-    assert "evaluation.lda_alpha_grid" in user and "lda.k_range" in user
-    assert "nmf.k_range" not in user and "stm.k_range" not in user
-    assert "lda_metrics.csv" in user
+    assert "evaluation.stm_sigma_prior_grid" in user and "stm.k_range" in user
+    assert "lda.k_range" not in user and "nmf.k_range" not in user and "bertopic" not in user
+    assert "stm_metrics.csv" in user
     assert "yaml proposal" in user
-    assert "param_sweep_macro_k" in user  # proibida citada no contrato
+    assert "stm_sigma_prior_grid" in user
 
 
 def test_build_messages_final_phase_asks_two_part_report():
-    msgs = _advisor.build_advisor_messages(_ev("folha", "lda"), round_n=3, model_type="lda")
+    msgs = _advisor.build_advisor_messages(_ev("youtube_doc", "stm"), round_n=3, model_type="stm")
     user = msgs[-1]["content"].lower()
     assert "retrospectiva" in user            # parte 1
     assert "pré-análise" in user or "pre-análise" in user  # parte 2
@@ -421,19 +421,19 @@ def test_build_messages_with_history_appends_only_user():
     history = [{"role": "system", "content": "sys"},
                {"role": "user", "content": "u1"},
                {"role": "assistant", "content": "a1"}]
-    msgs = _advisor.build_advisor_messages(_ev("folha", "nmf"), round_n=2,
-                                           model_type="nmf", history=history)
+    msgs = _advisor.build_advisor_messages(_ev("youtube_doc", "stm"), round_n=2,
+                                           model_type="stm", history=history)
     assert msgs[:3] == history            # histórico preservado
     assert msgs[-1]["role"] == "user"     # só o novo turno user é anexado
     assert len(msgs) == 4
 
 
-def test_build_messages_bertopic_system_has_layer_order():
-    msgs = _advisor.build_advisor_messages(_ev("tweets_bre2022", "bertopic"),
-                                           round_n=1, model_type="bertopic")
+def test_build_messages_stm_system_has_calibration_order():
+    msgs = _advisor.build_advisor_messages(_ev("youtube_doc", "stm"),
+                                           round_n=1, model_type="stm")
     sys_low = msgs[0]["content"].lower()
-    assert "estrutura" in sys_low and "outlier" in sys_low
-    assert "min_samples" in sys_low  # knob de texto curto
+    assert "semantic coherence" in sys_low and "sigma.prior" in sys_low
+    assert "outlier" in sys_low  # o prompt esclarece que STM nao possui topico de outlier
 
 
 def _valid_value_for(path):
@@ -459,9 +459,9 @@ def _valid_value_for(path):
 
 
 def test_allowlist_for_model_stm_includes_per_corpus_pins():
-    paths = _advisor._allowlist_for_model("stm", "folha")
+    paths = _advisor._allowlist_for_model("stm", "youtube_doc")
     assert "evaluation.stm_sigma_prior_grid" in paths
-    assert "corpora.folha.stm_best_k" in paths
+    assert "corpora.youtube_doc.stm_best_k" in paths
     # todo caminho proposto passa pelo validador (consistência allowlist↔prompt)
     valid, invalid = _advisor.validate_patch({p: _valid_value_for(p) for p in paths})
     assert invalid == []
@@ -699,7 +699,7 @@ def test_persist_round_records_effective_provider_and_model_when_given(tmp_path)
     base = str(tmp_path)
     proposal = {"round": 1, "target_layer": "structure", "params_patch": {}}
     _advisor.persist_round(
-        base, "tweets_bre2022", "bertopic", 1,
+        base, "youtube_doc", "stm", 1,
         evidence={"run_dir": "run_x"}, proposal=proposal, invalid_keys=[],
         report_md="ok", status="proposed", cycle_round=1, phase="varredura",
         advisor_cfg={"provider": "ollama", "model": "qwen3:8b"},
@@ -715,13 +715,13 @@ def test_run_advisor_round_ledger_records_effective_provider_on_fallback(tmp_pat
     # configurado (mesmo cenário de bug do run_viz_audit).
     base = str(tmp_path)
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "folha", "model": "lda", "run_dir": "run_x",
+        "corpus": "youtube_doc", "model": "stm", "run_dir": "run_x",
         "csv_snippets": {}, "ledger_rounds": 0})
     fallback_cfg = {"provider": "ollama", "model": "qwen3:8b"}
     monkeypatch.setattr(_advisor, "call_advisor",
                         lambda messages, cfg: (_GOOD_RESPONSE, fallback_cfg))
     _advisor.run_advisor_round(
-        "folha", "lda", base,
+        "youtube_doc", "stm", base,
         params={"advisor": {"enabled": True, "provider": "openai", "model": "gpt-4o",
                             "api_key_env": "X", "rounds": 3, "fallback": fallback_cfg}})
     led = _advisor.read_ledger(os.path.join(base, "llm_advisor_state.json"))
@@ -739,7 +739,7 @@ def test_save_and_read_chat_roundtrip(tmp_path):
     msgs = [{"role": "system", "content": "sys"},
             {"role": "user", "content": "u1"},
             {"role": "assistant", "content": "a1"}]
-    _advisor.save_chat(chat, "folha", "lda", msgs)
+    _advisor.save_chat(chat, "youtube_doc", "stm", msgs)
     assert _advisor.read_chat(chat) == msgs
 
 
@@ -748,12 +748,12 @@ def test_run_advisor_round_happy_path(tmp_path, monkeypatch):
     base = str(tmp_path)
 
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "tweets_bre2022", "model": "bertopic", "run_dir": "run_x",
+        "corpus": "youtube_doc", "model": "stm", "run_dir": "run_x",
         "csv_snippets": {}, "ledger_rounds": 0})
     monkeypatch.setattr(_advisor, "call_advisor", lambda messages, cfg: (_GOOD_RESPONSE, cfg))
 
     result = _advisor.run_advisor_round(
-        "tweets_bre2022", "bertopic", base,
+        "youtube_doc", "stm", base,
         params={"advisor": {"enabled": True, "api_key_env": "X", "rounds": 3}})
     assert result["round"] == 1
     assert result["phase"] == "varredura"
@@ -769,7 +769,7 @@ def test_run_advisor_round_happy_path(tmp_path, monkeypatch):
 def test_run_advisor_round_second_round_replays_history(tmp_path, monkeypatch):
     base = str(tmp_path)
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "folha", "model": "lda", "run_dir": "run_x",
+        "corpus": "youtube_doc", "model": "stm", "run_dir": "run_x",
         "csv_snippets": {}, "ledger_rounds": 1})
     seen = {}
 
@@ -778,12 +778,12 @@ def test_run_advisor_round_second_round_replays_history(tmp_path, monkeypatch):
         return _GOOD_RESPONSE, cfg
     monkeypatch.setattr(_advisor, "call_advisor", _fake_call)
     # pré-popula uma conversa de rodada 1 (system+user+assistant)
-    _advisor.save_chat(os.path.join(base, "advisor_chat.json"), "folha", "lda",
+    _advisor.save_chat(os.path.join(base, "advisor_chat.json"), "youtube_doc", "stm",
                        [{"role": "system", "content": "s"},
                         {"role": "user", "content": "u1"},
                         {"role": "assistant", "content": "a1"}])
     result = _advisor.run_advisor_round(
-        "folha", "lda", base, round=2,
+        "youtube_doc", "stm", base, round=2,
         params={"advisor": {"enabled": True, "api_key_env": "X", "rounds": 3}})
     assert result["round"] == 2
     # a rodada 2 reenviou o histórico (3) + o novo turno user (1) = 4
@@ -798,7 +798,7 @@ def test_run_advisor_round_retry_then_succeed_keeps_chat_clean(tmp_path, monkeyp
     # lembrete corretivo, senão o replay das próximas rodadas fica poluído.
     base = str(tmp_path)
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "folha", "model": "lda", "run_dir": "run_x",
+        "corpus": "youtube_doc", "model": "stm", "run_dir": "run_x",
         "csv_snippets": {}, "ledger_rounds": 0})
     calls = {"n": 0}
 
@@ -809,7 +809,7 @@ def test_run_advisor_round_retry_then_succeed_keeps_chat_clean(tmp_path, monkeyp
     monkeypatch.setattr(_advisor, "call_advisor", _fake_call)
 
     result = _advisor.run_advisor_round(
-        "folha", "lda", base,
+        "youtube_doc", "stm", base,
         params={"advisor": {"enabled": True, "api_key_env": "X", "rounds": 3}})
     assert result["status"] == "proposed"
     assert calls["n"] == 2  # houve retry
@@ -824,12 +824,12 @@ def test_run_advisor_round_retry_then_succeed_keeps_chat_clean(tmp_path, monkeyp
 def test_run_advisor_round_needs_review_on_bad_format(tmp_path, monkeypatch):
     base = str(tmp_path)
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "folha", "model": "lda", "run_dir": "run_y",
+        "corpus": "youtube_doc", "model": "stm", "run_dir": "run_y",
         "csv_snippets": {}, "ledger_rounds": 0})
     monkeypatch.setattr(_advisor, "call_advisor", lambda messages, cfg: ("sem bloco válido", cfg))
 
     result = _advisor.run_advisor_round(
-        "folha", "lda", base,
+        "youtube_doc", "stm", base,
         params={"advisor": {"enabled": True, "api_key_env": "X", "rounds": 3}})
     assert result["status"] == "needs_review"
     assert os.path.exists(result["paths"]["report_file"])
@@ -842,18 +842,18 @@ def test_run_advisor_round_final_resets_chat(tmp_path, monkeypatch):
     # p/ a próxima chamada recomeçar limpo na rodada 1/varredura.
     base = str(tmp_path)
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "folha", "model": "lda", "corpus_info": "", "run_dir": "run_x",
+        "corpus": "youtube_doc", "model": "stm", "corpus_info": "", "run_dir": "run_x",
         "csv_snippets": {}, "ledger_rounds": 2})
     monkeypatch.setattr(_advisor, "call_advisor", lambda messages, cfg: (_GOOD_RESPONSE, cfg))
     # pré-popula 2 turnos assistant -> cycle_round=3 -> fase 'final' (rounds=3)
-    _advisor.save_chat(os.path.join(base, "advisor_chat.json"), "folha", "lda",
+    _advisor.save_chat(os.path.join(base, "advisor_chat.json"), "youtube_doc", "stm",
                        [{"role": "system", "content": "s"},
                         {"role": "user", "content": "u1"},
                         {"role": "assistant", "content": "a1"},
                         {"role": "user", "content": "u2"},
                         {"role": "assistant", "content": "a2"}])
     result = _advisor.run_advisor_round(
-        "folha", "lda", base,
+        "youtube_doc", "stm", base,
         params={"advisor": {"enabled": True, "api_key_env": "X", "rounds": 3}})
     assert result["phase"] == "final"
     assert result["status"] == "proposed"
@@ -865,7 +865,7 @@ def test_run_advisor_round_cycle_round_from_chat(tmp_path, monkeypatch):
     # a fase vem da POSIÇÃO no ciclo (chat), não do round global do ledger.
     base = str(tmp_path)
     monkeypatch.setattr(_advisor, "collect_evidence", lambda *a, **k: {
-        "corpus": "folha", "model": "lda", "corpus_info": "", "run_dir": "run_x",
+        "corpus": "youtube_doc", "model": "stm", "corpus_info": "", "run_dir": "run_x",
         "csv_snippets": {}, "ledger_rounds": 0})
     seen = {}
 
@@ -874,14 +874,14 @@ def test_run_advisor_round_cycle_round_from_chat(tmp_path, monkeypatch):
         return _GOOD_RESPONSE, cfg
     monkeypatch.setattr(_advisor, "call_advisor", _fake_call)
     # 2 turnos assistant no chat -> próxima é a rodada 3 do ciclo
-    _advisor.save_chat(os.path.join(base, "advisor_chat.json"), "folha", "lda",
+    _advisor.save_chat(os.path.join(base, "advisor_chat.json"), "youtube_doc", "stm",
                        [{"role": "system", "content": "s"},
                         {"role": "user", "content": "u1"},
                         {"role": "assistant", "content": "a1"},
                         {"role": "user", "content": "u2"},
                         {"role": "assistant", "content": "a2"}])
     result = _advisor.run_advisor_round(
-        "folha", "lda", base,
+        "youtube_doc", "stm", base,
         params={"advisor": {"enabled": True, "api_key_env": "X", "rounds": 3}})
     assert result["cycle_round"] == 3
     assert result["phase"] == "final"          # rounds=3 -> cycle 3 é final
@@ -1018,8 +1018,8 @@ def test_derive_stm_prevalence_keeps_significant_effects_only(tmp_path):
     assert linhas[1].startswith("2,")             # ordenado por |estimate| desc
 
 
+@pytest.mark.skip(reason="BERTopic evidence fixture removed in STM-only repository")
 def test_collect_evidence_picks_up_frex_macro_and_prevalence(tmp_path, monkeypatch):
-    base = tmp_path / "stm"
     run = base / "folha_20260101_000000"
     run.mkdir(parents=True)
     (run / "stm_results.csv").write_text("post_id,topic_id,granularity\n1,0,unit\n",
@@ -1032,7 +1032,7 @@ def test_collect_evidence_picks_up_frex_macro_and_prevalence(tmp_path, monkeypat
         "topic_id,term,estimate,std_error,p_value\n0,categoriaesporte,0.5,0.1,0.01\n",
         encoding="utf-8")
     monkeypatch.setattr(_advisor, "_find_corpus_csv", lambda corpus_id: None)
-    ev = _advisor.collect_evidence("folha", "stm", str(base))
+    ev = _advisor.collect_evidence("youtube_doc", "stm", str(base))
     for nome in ("stm_topics_frex.csv", "bertopic_macro_temas.csv",
                  "bertopic_categoria_topico.csv",
                  "derived_stm_prevalence_significativos.csv"):
@@ -1040,13 +1040,13 @@ def test_collect_evidence_picks_up_frex_macro_and_prevalence(tmp_path, monkeypat
 
 
 def test_collect_evidence_survives_missing_corpus_csv(tmp_path, monkeypatch):
-    base = tmp_path / "lda"
-    run = base / "folha_20260101_000000"
+    base = tmp_path / "stm"
+    run = base / "youtube_doc_20260101_000000"
     run.mkdir(parents=True)
-    (run / "lda_results.csv").write_text("post_id,topic_id,granularity\n1,0,unit\n",
+    (run / "stm_results.csv").write_text("post_id,topic_id,granularity\n1,0,unit\n",
                                          encoding="utf-8")
     monkeypatch.setattr(_advisor, "_find_corpus_csv", lambda corpus_id: None)
-    ev = _advisor.collect_evidence("folha", "lda", str(base))
+    ev = _advisor.collect_evidence("youtube_doc", "stm", str(base))
     assert "derived_topic_category.csv" not in ev["csv_snippets"]
 
 
@@ -1062,14 +1062,14 @@ def test_parse_viz_audit_splits_sections_and_reports_missing():
 
 
 def test_run_viz_audit_persists_and_retries_missing(tmp_path, monkeypatch):
-    base = tmp_path / "lda"
-    run = base / "folha_20260722_000000"
+    base = tmp_path / "stm"
+    run = base / "youtube_doc_20260722_000000"
     run.mkdir(parents=True)
-    (run / "lda_results.csv").write_text("post_id,topic_id\n1,0\n", encoding="utf-8")
-    (run / "lda_metrics.csv").write_text("k_grid_scores\n1\n", encoding="utf-8")
-    (run / "lda_topics_for_eval.csv").write_text("topic_id,keywords\n0,a b\n", encoding="utf-8")
-    ev = _advisor.collect_evidence("folha", "lda", str(base))
-    com, sem = _advisor.evidencia_por_slug(ev, "lda")
+    (run / "stm_results.csv").write_text("post_id,topic_id\n1,0\n", encoding="utf-8")
+    (run / "stm_metrics.csv").write_text("k_grid_scores\n1\n", encoding="utf-8")
+    (run / "stm_topics_frex.csv").write_text("topic_id,keywords_frex\n0,a b\n", encoding="utf-8")
+    ev = _advisor.collect_evidence("youtube_doc", "stm", str(base))
+    com, sem = _advisor.evidencia_por_slug(ev, "stm")
     slugs = [s for s, _, _ in com]
     assert len(slugs) >= 2 and sem, "fixture precisa de slugs com e sem evidencia"
     first = "\n".join(f"## {s}\nprosa {s}" for s in slugs[:-1])   # falta o último
@@ -1082,8 +1082,8 @@ def test_run_viz_audit_persists_and_retries_missing(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_advisor, "call_advisor", fake_call)
     params = {"advisor": {"provider": "openai", "model": "gpt-4o"},
-              "corpora": {"folha": {"description": "noticias"}}}
-    out = _advisor.run_viz_audit("folha", "lda", str(base), params=params)
+              "corpora": {"youtube_doc": {"description": "noticias"}}}
+    out = _advisor.run_viz_audit("youtube_doc", "stm", str(base), params=params)
     assert len(calls) == 2 and out["missing"] == []
     assert (run / "advisor_viz" / f"{slugs[-1]}.md").exists()
     # Slug sem CSV recebe o placeholder em codigo, sem depender do juizo do LLM
@@ -1097,11 +1097,11 @@ def test_run_viz_audit_footer_and_ledger_use_effective_provider_on_fallback(tmp_
     # Correção 2: se o PRIMARY falha e o FALLBACK responde, o rodapé publicado
     # e a entrada do ledger têm de atribuir a resposta ao FALLBACK (quem
     # respondeu de verdade), não ao provider/model configurados como primary.
-    base = tmp_path / "lda"
-    run = base / "folha_20260722_000000"
+    base = tmp_path / "stm"
+    run = base / "youtube_doc_20260722_000000"
     run.mkdir(parents=True)
-    (run / "lda_results.csv").write_text("post_id,topic_id\n1,0\n", encoding="utf-8")
-    slugs = [s for s, _ in _advisor.VIZ_SLUGS["lda"]]
+    (run / "stm_results.csv").write_text("post_id,topic_id\n1,0\n", encoding="utf-8")
+    slugs = [s for s, _ in _advisor.VIZ_SLUGS["stm"]]
     resp = "\n".join(f"## {s}\nprosa {s}" for s in slugs)  # todas as seções, sem retry
     fallback_cfg = {"provider": "ollama", "model": "qwen3:8b"}
 
@@ -1113,8 +1113,8 @@ def test_run_viz_audit_footer_and_ledger_use_effective_provider_on_fallback(tmp_
     monkeypatch.setattr(_advisor, "call_advisor", fake_call)
     params = {"advisor": {"provider": "openai", "model": "gpt-4o",
                           "fallback": fallback_cfg},
-              "corpora": {"folha": {"description": "noticias"}}}
-    _advisor.run_viz_audit("folha", "lda", str(base), params=params)
+              "corpora": {"youtube_doc": {"description": "noticias"}}}
+    _advisor.run_viz_audit("youtube_doc", "stm", str(base), params=params)
     body = (run / "advisor_viz" / f"{slugs[0]}.md").read_text(encoding="utf-8")
     assert "ollama/qwen3:8b" in body
     assert "openai/gpt-4o" not in body
@@ -1124,11 +1124,11 @@ def test_run_viz_audit_footer_and_ledger_use_effective_provider_on_fallback(tmp_
 
 
 def test_persist_viz_audit_writes_one_file_per_slug(tmp_path):
-    run_dir = tmp_path / "folha_20260722_000000"
+    run_dir = tmp_path / "youtube_doc_20260722_000000"
     run_dir.mkdir()
     cfg = {"provider": "openai", "model": "gpt-4o"}
     written = _advisor.persist_viz_audit(
-        str(run_dir), "folha", "lda",
+        str(run_dir), "youtube_doc", "stm",
         {"heatmap_phi": "prosa X", "grid_k": "prosa Y"}, "RESPOSTA COMPLETA", cfg)
     assert sorted(os.path.basename(p) for p in written) == ["grid_k.md", "heatmap_phi.md"]
     body = (run_dir / "advisor_viz" / "heatmap_phi.md").read_text(encoding="utf-8")
@@ -1197,11 +1197,11 @@ def test_persist_viz_audit_usa_separador_estrela_nao_traco():
 def test_persist_viz_audit_versiona_em_vez_de_sobrescrever(tmp_path):
     # Esses textos passam por revisao humana e vao ao site: reexecutar a auditoria
     # nao pode apagar a versao revisada sem deixar copia.
-    run = tmp_path / "folha_20260722_000000"
+    run = tmp_path / "youtube_doc_20260722_000000"
     run.mkdir()
     cfg = {"provider": "ollama", "model": "gemma4:31b"}
-    _advisor.persist_viz_audit(str(run), "folha", "lda", {"grid_k": "versao 1"}, "R1", cfg)
-    _advisor.persist_viz_audit(str(run), "folha", "lda", {"grid_k": "versao 2"}, "R2", cfg)
+    _advisor.persist_viz_audit(str(run), "youtube_doc", "stm", {"grid_k": "versao 1"}, "R1", cfg)
+    _advisor.persist_viz_audit(str(run), "youtube_doc", "stm", {"grid_k": "versao 2"}, "R2", cfg)
     atual = (run / "advisor_viz" / "grid_k.md").read_text(encoding="utf-8")
     assert "versao 2" in atual
     backups = list((run / "advisor_viz").glob("grid_k.md.bak-*"))
@@ -1212,22 +1212,22 @@ def test_persist_viz_audit_versiona_em_vez_de_sobrescrever(tmp_path):
 _PANEL_PARAMS = {
     "advisor": {"provider": "openai", "model": "gpt-4o", "viz_panel": True,
                 "fallback": {"provider": "ollama", "model": "gemma4:31b"}},
-    "corpora": {"folha": {"description": "noticias"}},
+    "corpora": {"youtube_doc": {"description": "noticias"}},
 }
 
 
 def _fixture_run_lda(tmp_path):
     """(base, run, slugs_com_evidencia) — so os slugs COM CSV recebem prosa; os
     demais viram placeholder deterministico e nao servem para checar leitura."""
-    base = tmp_path / "lda"
-    run = base / "folha_20260722_000000"
+    base = tmp_path / "stm"
+    run = base / "youtube_doc_20260722_000000"
     run.mkdir(parents=True)
-    (run / "lda_results.csv").write_text("post_id,topic_id\n1,0\n", encoding="utf-8")
-    (run / "lda_metrics.csv").write_text("k_grid_scores\n1\n", encoding="utf-8")
-    (run / "lda_topics_for_eval.csv").write_text("topic_id,keywords\n0,a b\n",
+    (run / "stm_results.csv").write_text("post_id,topic_id\n1,0\n", encoding="utf-8")
+    (run / "stm_metrics.csv").write_text("k_grid_scores\n1\n", encoding="utf-8")
+    (run / "stm_topics_frex.csv").write_text("topic_id,keywords_frex\n0,a b\n",
                                                  encoding="utf-8")
-    ev = _advisor.collect_evidence("folha", "lda", str(base))
-    com, _sem = _advisor.evidencia_por_slug(ev, "lda")
+    ev = _advisor.collect_evidence("youtube_doc", "stm", str(base))
+    com, _sem = _advisor.evidencia_por_slug(ev, "stm")
     return base, run, [s for s, _, _ in com]
 
 
@@ -1250,7 +1250,7 @@ def test_run_viz_audit_painel_grava_as_duas_leituras_no_mesmo_arquivo(tmp_path, 
         return "\n".join(f"## {s}\nprosa de {cfg['model']}" for s in slugs), cfg
 
     monkeypatch.setattr(_advisor, "call_advisor", fake_call)
-    out = _advisor.run_viz_audit("folha", "lda", str(base), params=_PANEL_PARAMS)
+    out = _advisor.run_viz_audit("youtube_doc", "stm", str(base), params=_PANEL_PARAMS)
     assert [c["model"] for c in out["painel"]] == ["gpt-4o", "gemma4:31b"]
     body = (run / "advisor_viz" / f"{slugs[0]}.md").read_text(encoding="utf-8")
     assert "**Leitura A — gpt-4o**" in body and "**Leitura B — gemma4:31b**" in body
@@ -1271,7 +1271,7 @@ def test_run_viz_audit_painel_com_um_provider_fora_publica_o_outro(tmp_path, mon
         return "\n".join(f"## {s}\nso o gemma" for s in slugs), cfg
 
     monkeypatch.setattr(_advisor, "call_advisor", fake_call)
-    out = _advisor.run_viz_audit("folha", "lda", str(base), params=_PANEL_PARAMS)
+    out = _advisor.run_viz_audit("youtube_doc", "stm", str(base), params=_PANEL_PARAMS)
     assert [c["model"] for c in out["painel"]] == ["gemma4:31b"]
     assert out["falhas"][0]["model"] == "gpt-4o"
     body = (run / "advisor_viz" / f"{slugs[0]}.md").read_text(encoding="utf-8")
@@ -1291,16 +1291,16 @@ def test_run_viz_audit_painel_levanta_se_os_dois_falham(tmp_path, monkeypatch):
 
     monkeypatch.setattr(_advisor, "call_advisor", fake_call)
     with pytest.raises(_advisor.AdvisorConfigError):
-        _advisor.run_viz_audit("folha", "lda", str(base), params=_PANEL_PARAMS)
+        _advisor.run_viz_audit("youtube_doc", "stm", str(base), params=_PANEL_PARAMS)
 
 
 def test_painel_nao_duplica_placeholder_como_duas_leituras(tmp_path):
     # O placeholder e inserido em CODIGO e sai identico dos dois providers:
     # publicar duas vezes como "leituras independentes" seria falso.
-    run = tmp_path / "folha_20260722_000000"
+    run = tmp_path / "youtube_doc_20260722_000000"
     run.mkdir()
     secs = {"tsne_theta": _advisor.PLACEHOLDER_SEM_DADOS}
-    _advisor.persist_viz_panel(str(run), "folha", "lda",
+    _advisor.persist_viz_panel(str(run), "youtube_doc", "stm",
                                [({"provider": "openai", "model": "gpt-4o"}, secs),
                                 ({"provider": "ollama", "model": "gemma4:31b"}, dict(secs))],
                                "RESP")
@@ -1313,11 +1313,11 @@ def test_painel_nao_duplica_placeholder_como_duas_leituras(tmp_path):
 def test_persist_viz_panel_preserva_nota_do_autor_no_rerun(tmp_path):
     # A auditoria humana anota o erro de uma das leituras no proprio arquivo;
     # re-rodar a fase site nao pode republicar o callout SEM a ressalva.
-    run = tmp_path / "folha_20260722_000000"
+    run = tmp_path / "youtube_doc_20260722_000000"
     run.mkdir()
     cfgs = [{"provider": "openai", "model": "gpt-4o"},
             {"provider": "ollama", "model": "gemma4:31b"}]
-    _advisor.persist_viz_panel(str(run), "folha", "lda",
+    _advisor.persist_viz_panel(str(run), "youtube_doc", "stm",
                                [(cfgs[0], {"grid_k": "v1 gpt"}),
                                 (cfgs[1], {"grid_k": "v1 gemma"})], "R1")
     path = run / "advisor_viz" / "grid_k.md"
@@ -1325,7 +1325,7 @@ def test_persist_viz_panel_preserva_nota_do_autor_no_rerun(tmp_path):
     path.write_text(path.read_text(encoding="utf-8").replace(
         "\n\n***\n", f"\n\n{nota}\n\n***\n", 1), encoding="utf-8")
 
-    _advisor.persist_viz_panel(str(run), "folha", "lda",
+    _advisor.persist_viz_panel(str(run), "youtube_doc", "stm",
                                [(cfgs[0], {"grid_k": "v2 gpt"}),
                                 (cfgs[1], {"grid_k": "v2 gemma"})], "R2")
     novo = path.read_text(encoding="utf-8")
@@ -1373,7 +1373,7 @@ def test_painel_nao_marca_como_faltante_slug_que_um_provider_entregou(tmp_path, 
         return "\n".join(f"## {s}\nprosa {cfg['model']}" for s in entrega), cfg
 
     monkeypatch.setattr(_advisor, "call_advisor", fake_call)
-    out = _advisor.run_viz_audit("folha", "lda", str(base), params=_PANEL_PARAMS,
+    out = _advisor.run_viz_audit("youtube_doc", "stm", str(base), params=_PANEL_PARAMS,
                                  retry_on_missing=False)
     assert out["missing"] == [], "slug entregue por um provider nao e faltante"
     body = (run / "advisor_viz" / f"{orfao}.md").read_text(encoding="utf-8")
@@ -1407,7 +1407,7 @@ def test_fatos_derivados_keywords_expoe_pares_que_compartilham_termo():
           "2,Ambiente,\"governo, terra, brasil\",lda\n"
           "5,Futebol,\"jogo, futebol, brasileiro\",lda\n"
           "19,Olimpicos,\"atleta, futebol, brasileiro\",lda\n")
-    out = _advisor._fatos_derivados("heatmap_phi", "lda", {"lda_topics_for_eval.csv": kw})
+    out = _advisor._fatos_derivados("heatmap_phi", "stm", {"stm_topics_for_eval.csv": kw})
     assert "T1 e T2: terra" in out
     assert "T5 e T19: brasileiro, futebol" in out
     # e a lista de termos de topico unico vem com a ressalva anti-"exclusivo"
@@ -1429,14 +1429,14 @@ def test_fatos_derivados_grid_k_sinaliza_serie_nao_monotonica():
 def test_fatos_derivados_grid_k_reconhece_serie_monotonica():
     metrics = ('model,k_grid_scores\n'
                'lda,"{""3"": 0.30, ""5"": 0.40, ""10"": 0.55}"\n')
-    out = _advisor._fatos_derivados("grid_k", "lda", {"lda_metrics.csv": metrics})
+    out = _advisor._fatos_derivados("grid_k", "stm", {"stm_metrics.csv": metrics})
     assert "é monotônica neste grid" in out and "NÃO é monotônica" not in out
 
 
 def test_fatos_derivados_grid_k_deriva_npmi_e_diversity_e_avisa_divergencia():
     # Protocolo pos-22/08/2026 (docs/protocolo_selecao.md §1.5/§1.6): NPMI decide
     # o K (Pareto NPMI x Diversity), C_v so reporta. k_npmi_scores/k_diversity_scores
-    # ja existem em nmf_metrics.csv/lda_metrics.csv reais mas nao tinham fato
+    # ja existem em nmf_metrics.csv/stm_metrics.csv reais mas nao tinham fato
     # derivado nenhum ate esta mudanca.
     metrics = ('model,k_grid_scores,k_npmi_scores,k_diversity_scores\n'
                'nmf,"{""3"": 0.40, ""7"": 0.55, ""8"": 0.53, ""25"": 0.60}",'
@@ -1520,7 +1520,7 @@ def test_fatos_derivados_cross_tab_acerta_concentrada_e_dispersa():
            "equilibrioesaude,499,1.2,0.0,66.7\n"
            "cotidiano,498,2.8,0.2,35.3\n"
            "ciencia,484,0.8,25.4,1.7\n")
-    out = _advisor._fatos_derivados("topico_categoria", "lda",
+    out = _advisor._fatos_derivados("topico_categoria", "stm",
                                     {"derived_topic_category.csv": csv})
     assert "equilibrioesaude" in out.split("mais DISPERSA")[0]
     assert "ciencia" in out.split("mais DISPERSA")[1].splitlines()[0]
@@ -1549,8 +1549,8 @@ def test_fatos_derivados_ranking_ignora_ordem_do_arquivo():
            "18,Globolixo,0.574,729\n"
            "11,Diplomacao,0.495,714\n"
            "0,Debates,0.451,619\n")
-    out = _advisor._fatos_derivados("docs_por_topico", "lda",
-                                    {"lda_exclusividade_ranking.csv": csv})
+    out = _advisor._fatos_derivados("docs_por_topico", "stm",
+                                    {"stm_exclusividade_ranking.csv": csv})
     volume = out.split("por n_docs")[1]
     # a ordem correta e 729 > 714 > 619 > 615: T0 vem ANTES de T12
     assert volume.index("T0") < volume.index("T12")
@@ -1564,8 +1564,8 @@ def test_fatos_derivados_grid_acha_o_minimo_de_perplexidade():
            "symmetric,0.01,0.510088,3979.811664\n"
            "0.01,0.10,0.500182,3302.773534\n"
            "asymmetric,0.10,0.497078,3295.304127\n")
-    out = _advisor._fatos_derivados("grid_priors", "lda",
-                                    {"lda_alpha_eta_grid.csv": csv})
+    out = _advisor._fatos_derivados("grid_priors", "stm",
+                                    {"stm_alpha_eta_grid.csv": csv})
     # separador de milhar tambem em convencao PT-BR: 3.295,30
     assert "3.295,30" in out
     assert "3.302,77" not in out.split("menor perplexity")[1]
@@ -1593,14 +1593,14 @@ def test_fatos_derivados_grid_hparams_npmi_maiusculo_nmf_e_cobertura_ativa():
     assert "27 documento(s) com BOW vazio" in out
 
 
-def test_fatos_derivados_grid_priors_npmi_minusculo_lda_sem_cobertura():
-    # Casing do braco LDA (alpha/eta) e "npmi" minusculo (lda_alpha_eta_grid.csv
+def test_fatos_derivados_grid_priors_npmi_minusculo_stm_sem_cobertura():
+    # Casing do braco LDA (alpha/eta) e "npmi" minusculo (stm_alpha_eta_grid.csv
     # real); esse grid nao tem coluna cobertura -- nao pode quebrar por isso.
     csv = ("alpha,eta,cv,npmi,perplexity\n"
            "symmetric,0.01,0.51,0.08,3979.81\n"
            "asymmetric,0.10,0.49,0.11,3295.30\n")
-    out = _advisor._fatos_derivados("grid_priors", "lda",
-                                    {"lda_alpha_eta_grid.csv": csv})
+    out = _advisor._fatos_derivados("grid_priors", "stm",
+                                    {"stm_alpha_eta_grid.csv": csv})
     assert "maior NPMI do grid: 0,1100 em [" in out
     assert "cobertura" not in out
     assert "porta" not in out
@@ -1620,8 +1620,8 @@ def test_fatos_derivados_grid_hparams_cobertura_vacua_nao_alarma():
 
 
 def test_fatos_derivados_devolve_vazio_sem_csv_conhecido():
-    assert _advisor._fatos_derivados("similaridade_topicos", "lda", {}) == ""
-    assert _advisor._fatos_derivados("topico_categoria", "lda",
+    assert _advisor._fatos_derivados("similaridade_topicos", "stm", {}) == ""
+    assert _advisor._fatos_derivados("topico_categoria", "stm",
                                      {"coisa_qualquer.csv": "a,b\n1,2\n"}) == ""
 
 
@@ -1630,7 +1630,7 @@ def test_evidencia_por_slug_injeta_bloco_de_fatos():
            "poder,100,85.4,14.6\n"
            "mundo,50,40.0,60.0\n")
     ev = {"csv_snippets": {"derived_topic_category.csv": csv}}
-    com, _sem = _advisor.evidencia_por_slug(ev, "lda")
+    com, _sem = _advisor.evidencia_por_slug(ev, "stm")
     texto = dict((s, t) for s, _ti, t in com)["topico_categoria"]
     assert "FATOS DERIVADOS" in texto
     assert "derived_topic_category.csv" in texto     # o CSV cru continua junto
@@ -1697,11 +1697,11 @@ def test_registrar_uso_grava_jsonl_append(tmp_path):
         _advisor.registrar_uso(
             {"provider": "openai", "model": "gpt-4.1-mini"},
             entrada=1000 * (i + 1), saida=100, entrada_cacheada=0, raciocinio=0,
-            contexto={"corpus": "folha", "modelo_topico": "lda", "fase": "site"},
+            contexto={"corpus": "youtube_doc", "modelo_topico": "stm", "fase": "site"},
             path=str(log))
     linhas = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
     assert len(linhas) == 3
-    assert linhas[0]["corpus"] == "folha" and linhas[0]["fase"] == "site"
+    assert linhas[0]["corpus"] == "youtube_doc" and linhas[0]["fase"] == "site"
     assert linhas[2]["entrada"] == 3000
     assert all("timestamp" in l and "custo_usd" in l for l in linhas)
 
@@ -1713,7 +1713,7 @@ def test_relatorio_de_gastos_agrega_por_modelo_e_rodada(tmp_path):
         _advisor.registrar_uso({"provider": "openai", "model": mod},
                                entrada=ent, saida=1000, entrada_cacheada=0,
                                raciocinio=0,
-                               contexto={"corpus": "folha", "modelo_topico": "lda",
+                               contexto={"corpus": "youtube_doc", "modelo_topico": "stm",
                                          "fase": "site"},
                                path=str(log))
     rel = _advisor.relatorio_de_gastos(str(log))
@@ -1745,8 +1745,8 @@ def test_fatos_derivados_frex_nao_avisa_quando_ha_coluna_numerica():
     # legitimo e o aviso seria falso.
     com_peso = ("topic_id,topic_name,keywords,score\n"
                 "0,Tema,\"a, b\",0.5\n1,Outro,\"c, d\",0.7\n")
-    out = _advisor._fatos_derivados("keywords", "lda",
-                                    {"lda_topics_for_eval.csv": com_peso})
+    out = _advisor._fatos_derivados("keywords", "stm",
+                                    {"stm_topics_for_eval.csv": com_peso})
     assert "NÃO tem nenhuma coluna numérica" not in out
 
 
@@ -1758,6 +1758,6 @@ def test_fatos_derivados_keywords_traz_contagem_por_termo():
           "1,B,\"bolsonaro, brasil\",lda\n"
           "2,C,\"bolsonaro, terra\",lda\n"
           "3,D,\"pesquisa\",lda\n")
-    out = _advisor._fatos_derivados("heatmap_phi", "lda", {"lda_topics_for_eval.csv": kw})
+    out = _advisor._fatos_derivados("heatmap_phi", "stm", {"stm_topics_for_eval.csv": kw})
     assert "bolsonaro: 3 tópicos (T0, T1, T2)" in out
     assert "em quantos tópicos desta lista cada termo repetido aparece" in out

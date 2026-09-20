@@ -1,124 +1,36 @@
 # =============================================================================
-# 01-preprocessing — configuracao multi-corpus
+# 01-preprocessing — corpus youtube (transcricoes de reviews, EN)
 # =============================================================================
-# Cada corpus tem 1+ CSV em `data/raw/<corpus>/`. Os 2 corpora ja vivem como
-# CSV nativo (tweets sample 200k extraido do ZIP original — ver CLAUDE.md
-# para detalhes de origem).
-#
-# Selecione o corpus de duas formas:
-#   1. Edite `default_corpus` no final deste arquivo
-#   2. Ou edite `CORPUS = "..."` na celula 2 do notebook
-#
-# Chaves consumidas por `notebooks/01_preprocessing.ipynb`:
+# CSV bruto gerado por 00-dataset/build_corpus.py em data/raw/youtube/.
+# Chaves consumidas por notebooks/01_preprocessing.ipynb:
 #   raw_subdir, output_subdir, text_column, id_column, language,
 #   csv.sep, csv.encoding, rename, drop, add_constants,
 #   min_doc_length, min_words, emoji_handling
-#
-# Os modulos downstream (02-embeddings, 03-sentiment, 04-topic-modeling) tem
-# seu proprio params.yaml.
 # =============================================================================
 
 corpora:
 
-  # ---------------------------------------------------------------------------
-  # folha — Folha de Sao Paulo (PT-BR, 2018-2024, ~165k artigos)
-  # CSV bruto e na verdade TSV (separador \t)
-  # ---------------------------------------------------------------------------
-  folha:
-    raw_subdir: folha
-    output_subdir: folha
+  youtube:
+    raw_subdir: youtube
+    output_subdir: youtube
 
     text_column: message
-    id_column: post_id      # gerado (raw nao tem id)
-    language: pt
-
-    csv:
-      sep: "\t"
-      encoding: utf-8
-
-    rename:
-      Title: title
-      Content: message
-      Url: url
-      Published: data
-      categories: category
-
-    drop:
-      - url
-
-    add_constants:
-      platform: folha_uol
-
-    min_doc_length: 100     # artigos jornalisticos longos
-    min_words: 30
-    emoji_handling: demojize_pt  # PT-BR (Folha de Sao Paulo)
-
-    # Amostragem estratificada: 500 docs por editoria = ~5k total
-    # Remove o null para desativar e rodar o corpus completo.
-    sample:
-      n_per_category: 500
-      category_column: category   # coluna apos rename (categories → category)
-      categories:
-        - poder
-        - mercado
-        - mundo
-        - cotidiano
-        - ilustrada
-        - esporte
-        - equilibrioesaude
-        - ambiente
-        - educacao
-        - ciencia
-
-  # ---------------------------------------------------------------------------
-  # tweets_bre2022 — Tweets eleicoes BR 2022 (PT-BR, sample 200k de Zenodo 14834749)
-  # Subset random uniforme (seed=42) dos ~7M tweets originais; CSV em 163 MB
-  # ---------------------------------------------------------------------------
-  tweets_bre2022:
-    raw_subdir: tweets_bre2022
-    output_subdir: tweets_bre2022
-
-    text_column: message
-    id_column: tweet_id        # ja vem do parquet original
-    language: pt
+    id_column: post_id
+    language: en
 
     csv:
       sep: ","
       encoding: utf-8
 
-    rename:
-      tweet_content: message   # schema original do parquet usa tweet_content
-      created_at: data
+    rename: {}
     drop: []
     add_constants:
-      platform: twitter
-      election: br_2022
+      platform: youtube
 
-    min_doc_length: 20      # tweets sao curtos
-    min_words: 3
-    emoji_handling: demojize_pt
-
-    # Deriva coluna `category` como YYYY-MM a partir da coluna de data (apos rename).
-    # Necessario para: (a) amostragem estratificada por mes; (b) validacao temporal no 03.
-    derive_category_from_date:
-      date_column: data        # coluna apos rename (created_at -> data)
-      format: "%Y-%m"          # extrai YYYY-MM (mes eleitoral)
-      output_column: category
-
-    # Amostragem estratificada: setembro ausente do dataset bruto (0 tweets).
-    # n_per_category=5000 compensa atrito do preprocessing (~34-65% retencao por mes)
-    # → meta ~10k tweets nos 4 meses disponiveis.
-    sample:
-      n_per_category: 5000
-      category_column: category   # coluna derivada acima (YYYY-MM)
-      categories:
-        - "2022-08"
-        - "2022-10"
-        - "2022-11"
-        - "2022-12"
+    min_doc_length: 500
+    min_words: 100
+    emoji_handling: none
 
 # =============================================================================
-# Geral
-# =============================================================================
-default_corpus: tweets_bre2022
+default_corpus: youtube
 seed: 42

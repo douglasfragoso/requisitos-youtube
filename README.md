@@ -34,12 +34,11 @@ tópico; o requisito vem da sentença negativa dentro do aspecto.
 
 - Fonte: `transcricoes_youtube_metadados.json` — 1.563 vídeos, 1.496 com transcrição, metadados
   via yt-dlp (canal, data, views, likes, duração), coleta em 11/09/2026.
-- Recorte: **inglês** (detecção na transcrição, não no metadado `language`) ≈ 1.100 vídeos.
-  Canais: Dave2D (470), Marques Brownlee (387), Just Josh (244), MinistryTech (79).
-- Mediana ~1.800 palavras por transcrição (max ~11k). 1.206 via Whisper (com pontuação),
-  274 via legenda automática (sem pontuação — exige restauração antes de segmentar sentenças).
-- Categoria de produto derivada do título (regex + override manual): laptop (~620), phone (~300),
-  tablet, headphone, watch, tv, console, camera, other.
+- Recorte: **inglês** (detecção na transcrição, não no metadado `language`): 1.109 vídeos.
+  Canais: Dave2D (467), Marques Brownlee (319), Just Josh (242), MinistryTech (79), CNBC (1) e CNBC Television (1).
+- 869 via Whisper (com pontuação) e 240 via legenda automática (sem pontuação — exige restauração antes de segmentar sentenças).
+- Categoria de produto derivada do título (regex + override manual): laptop (629), phone (276),
+  other (57), tablet (42), headphone (36), watch (20), camera (14), desktop (12), console (9), monitor (9) e vr (5).
 - Covariáveis STM: `product_category`, `year`; `sentiment` (só no nível sentença).
   `channel` e `product_category` são colineares (cada canal cobre uma família) → só a categoria
   entra na fórmula; canal fica em análise descritiva.
@@ -173,14 +172,14 @@ métricas + export                    C_v, exclusividade c-TF-IDF, topic diversi
 ## 8. Estrutura do repositório
 
 ```
-00-dataset/            build_corpus.py, product_category_overrides.csv
-01-preprocessing/      configs/params.yaml, notebooks/01_preprocessing.ipynb, data/{raw,output}
-02-sentences/          configs/, notebooks/, data/{output}
+00-dataset/            build_corpus.py, product_category_overrides.csv, test_build_corpus.py
+01-preprocessing/      configs/params.yaml, notebooks/01_preprocessing.ipynb,
+                       test_corpus_limpo.py, data/{raw,output}
 03-topic-modeling/     configs/params.yaml, configs/advisor_prompts/{shared.yaml,stm/},
-                       notebooks/{_helpers.py,_selecao.py,_advisor.py,stm/,advisor/}, scripts/run_stm.R
-04-requirements/       (fase 2)
+                       notebooks/{_helpers.py,_selecao.py,_advisor.py,stm/,advisor/,test_params_youtube.py},
+                       scripts/run_stm.R
 articles/              PDFs + artigos_mapeados.txt          (não versionado)
-docs/                  specs/, related-works.md             (não versionado)
+docs/                  planos e especificações              (não versionado)
 ```
 
 `.gitignore` exclui `articles/`, `docs/`, `data/raw`, `data/output`, datasets `.json`, logs e `.venv`.
