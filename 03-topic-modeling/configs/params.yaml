@@ -62,7 +62,7 @@ corpora:
     stm_no_above: 0.5
     stm_k_range: [10, 15, 20, 25, 30, 35, 40]
     stm_grid_sample_size: 25000
-    stm_best_k: null
+    stm_best_k: 15
     language: en
 
 # =============================================================================

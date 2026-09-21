@@ -43,7 +43,7 @@ def test_youtube_sent_tem_chaves_do_template_stm():
     assert c["stm_no_above"] == 0.5
     assert c["stm_k_range"] == [10, 15, 20, 25, 30, 35, 40]
     assert c["stm_grid_sample_size"] == 25000
-    assert c.get("stm_best_k") is None
+    assert c["stm_best_k"] == 15
     assert c["language"] == "en"
 
 
@@ -64,3 +64,7 @@ def test_youtube_doc_tem_k_pinado_pelo_protocolo():
     _, c = get_corpus_config(load_params(), "youtube_doc")
     assert isinstance(c.get("stm_best_k"), int)
     assert 8 <= c["stm_best_k"] <= 25
+
+def test_youtube_sent_tem_k_pinado_pelo_protocolo():
+    _, c = get_corpus_config(load_params(), "youtube_sent")
+    assert c["stm_best_k"] == 15
