@@ -19,7 +19,7 @@
     "bertopic/01_bertopic_folha.ipynb".
 
 .PARAMETER KernelName
-    Nome do kernel Jupyter registrado (default: topicmodeling-venv).
+    Nome do kernel Jupyter registrado (default: topic-modeling).
 
 .PARAMETER Timeout
     --ExecutePreprocessor.timeout em segundos; -1 = sem limite (default).
@@ -29,7 +29,7 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$NotebookRelPath,
-    [string]$KernelName = "topicmodeling-venv",
+    [string]$KernelName = "topic-modeling",
     [string]$Timeout = "-1"
 )
 

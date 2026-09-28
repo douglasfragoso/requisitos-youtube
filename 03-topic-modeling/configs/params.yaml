@@ -15,6 +15,8 @@ corpora:
       - product_category
     stopwords_emojis:
       - "yeah"
+      - "maybe"
+      - "basically"
       - "okay"
       - "gonna"
       - "wanna"
@@ -85,6 +87,48 @@ llm:
   base_url: "http://localhost:11434"
   enabled: true
   timeout_per_topic: 30
+
+# === NMF restrito (refinamento pos-STM, RQ4 — docs/idealizacao-artigo.txt §6) ===
+# Decompoe, topico a topico, so as sentencas dos topicos STM classificados como
+# "aspecto genuino" (ou limitrofe) em subtemas — nao e comparacao com o STM nem
+# 5a granularidade, por isso NAO reaproveita stm_k_range/stm_no_below do corpus:
+# subconjuntos por topico sao bem menores que o corpus inteiro.
+nmf_restrito:
+  youtube_sent:
+    stm_run: youtube_sent_20260921_190124  # run final K=15 (pinado, ver docs/idealizacao-artigo.txt §5.2)
+    aspect_topics: [1, 3, 4, 6, 8, 10, 11, 12]
+    no_below: 5
+    no_above: 0.5
+    k_range: [2, 6]
+    # Variante "concatenada": os 8 topicos agrupados num unico sub-corpus
+    # (~56.7k sentencas, ~metade do corpus geral) -- K maior que o range acima
+    # (pensado para UM topico isolado), pontos espacados para manter o grid
+    # tratavel nesse volume. no_below mais alto que o da versao por-topico
+    # porque o sub-corpus concatenado e ~5-10x maior que um topico isolado.
+    no_below_concat: 10
+    k_values_concat: [8, 12, 16, 20, 24]
+
+# === Modelo guiado por sementes congeladas (H6) ===
+guided:
+  seeds_file: seeds_aspectos.yaml
+  seed_runs: [42, 7, 2026]
+  min_df_semente: {youtube_doc: 10, youtube_sent: 20}
+  min_sementes_por_aspecto: 2
+  keyatm:
+    stm_run: youtube_doc_20260927_175555  # R1: stopwords corrigidas; 7 testes de resultados
+    rscript_path: Rscript
+    no_keyword_topics: 5
+    no_keyword_topics_sens: [3, 8]
+    agrupar_categorias_min_videos: 20
+  gnmf:
+    stm_run: youtube_sent_20260921_190124
+    aspect_topics: [1, 3, 4, 6, 8, 10, 11, 12]
+    livres: 6
+    livres_sens: [3, 10]
+    lambda_grid: [0.1, 0.5, 1, 2, 5]
+    regra_lambda_top_n: 10
+    regra_lambda_frac: 0.8
+    bootstrap_runs: 1000
 
 # === Avaliacao ===
 evaluation:

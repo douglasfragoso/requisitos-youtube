@@ -1,24 +1,39 @@
-"""Contrato dos resultados do STM em youtube_sent (run mais recente)."""
+"""Contrato dos resultados do STM em youtube_sent (run pinado)."""
 import re
 from pathlib import Path
 
 import pandas as pd
 import pytest
+import yaml
 
 BASE = Path(__file__).resolve().parent.parent / "data" / "output" / "youtube_sent" / "stm"
 STAMP = re.compile(r"_\d{8}_\d{6}$")
 
 
-def _latest_run() -> Path:
-    runs = [d for d in BASE.iterdir() if d.is_dir() and STAMP.search(d.name) and (d / "stm_results.csv").exists()] if BASE.exists() else []
-    if not runs:
-        pytest.skip("stm_results.csv ainda nao gerado")
-    return max(runs, key=lambda d: d.name)
+def test_run_pinado_tem_exports_obrigatorios():
+    params_path = Path(__file__).resolve().parent.parent / "configs" / "params.yaml"
+    with params_path.open(encoding="utf-8") as handle:
+        run_name = yaml.safe_load(handle)["nmf_restrito"]["youtube_sent"]["stm_run"]
+    pinned = BASE / run_name
+    required = ("stm_results.csv", "stm_metrics.csv",
+                "stm_prevalence_effects.csv", "stm_topics_for_eval.csv")
+    assert pinned.is_dir(), pinned
+    assert all((pinned / name).is_file() for name in required), pinned
+
+
+def _pinned_run() -> Path:
+    params_path = Path(__file__).resolve().parent.parent / "configs" / "params.yaml"
+    with params_path.open(encoding="utf-8") as handle:
+        run_name = yaml.safe_load(handle)["nmf_restrito"]["youtube_sent"]["stm_run"]
+    run_dir = BASE / run_name
+    assert STAMP.search(run_name) and run_dir.is_dir(), run_dir
+    assert (run_dir / "stm_results.csv").is_file(), run_dir
+    return run_dir
 
 
 @pytest.fixture(scope="module")
 def run_dir():
-    return _latest_run()
+    return _pinned_run()
 
 
 @pytest.fixture(scope="module")

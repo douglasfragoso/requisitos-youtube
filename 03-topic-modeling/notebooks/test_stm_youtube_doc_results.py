@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import yaml
 
 BASE = Path(__file__).resolve().parent.parent / "data" / "output" / "youtube_doc" / "stm"
 STAMP = re.compile(r"_\d{8}_\d{6}$")
@@ -45,6 +46,15 @@ def test_topicos_tem_nomes_e_keywords(run_dir, metrics):
     assert len(topics) == int(metrics["n_topics"])
     assert topics["topic_name"].str.strip().ne("").all()
     assert topics["keywords"].str.split(", ").apply(len).ge(5).all()
+
+
+def test_topics_exclude_configured_stopwords(run_dir):
+    with (Path(__file__).resolve().parent.parent / "configs" / "params.yaml").open(encoding="utf-8") as handle:
+        params = yaml.safe_load(handle)
+    stopwords = set(params["corpora"]["youtube_doc"]["stopwords_emojis"])
+    topics = pd.read_csv(run_dir / "stm_topics_for_eval.csv")
+    words = {word.strip().lower() for row in topics["keywords"] for word in row.split(",")}
+    assert not words & stopwords, sorted(words & stopwords)
 
 
 def test_efeitos_de_prevalencia_tem_product_category(run_dir):
