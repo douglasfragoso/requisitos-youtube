@@ -37,19 +37,25 @@ def load_seeds(seeds_path: str | Path) -> dict[str, list[str]]:
 def normalize_seeds(
     seeds: dict[str, list[str]], lang: str = "en",
     extra_stopwords: list[str] | None = None,
+    preserve_terms: list[str] | None = None,
 ) -> dict[str, list[str]]:
     """Pass seeds through the same spaCy lemmatizer and stopword rule as STM."""
     from _helpers import _get_nlp
 
     nlp = _get_nlp(lang)
     extra = {word.lower() for word in (extra_stopwords or [])}
+    preserved = {word.lower() for word in (preserve_terms or [])}
     normalized = {}
     for aspect, words in seeds.items():
         effective = []
-        for doc in nlp.pipe(words):
-            tokens = [token.lemma_.lower() for token in doc
-                      if not token.is_stop and token.is_alpha
-                      and len(token.lemma_) > 2 and token.lemma_.lower() not in extra]
+        for word, doc in zip(words, nlp.pipe(words)):
+            literal = word.lower()
+            if literal in preserved:
+                tokens = [literal] if literal.isalpha() and len(literal) > 2 and literal not in extra else []
+            else:
+                tokens = [token.lemma_.lower() for token in doc
+                          if not token.is_stop and token.is_alpha
+                          and len(token.lemma_) > 2 and token.lemma_.lower() not in extra]
             if len(tokens) == 1 and tokens[0] not in effective:
                 effective.append(tokens[0])
         normalized[aspect] = effective
@@ -100,6 +106,18 @@ def build_seed_matrix(
         for word in seeds_efetivas[aspect]:
             matrix[dictionary.token2id[word], column] = 1.0
     return matrix, names
+
+
+def scaled_lambda_grid(X, Y, alpha_grid):
+    """Map dimensionless supervision weights to the corpus-specific objective."""
+    y = np.asarray(Y, dtype=float)
+    x_norm = float(X.multiply(X).sum()) if sparse.issparse(X) else float(np.sum(np.asarray(X) ** 2))
+    y_norm = float(np.sum(y ** 2))
+    if y_norm <= 0:
+        raise ValueError("matriz de semente vazia")
+    if x_norm <= 0 or not alpha_grid or any(not np.isfinite(a) or a <= 0 for a in alpha_grid):
+        raise ValueError("X ou grade alpha invalida")
+    return [float(alpha * x_norm / y_norm) for alpha in alpha_grid]
 
 
 def coefficient_of_variation(valores: list[float] | np.ndarray) -> float:
@@ -290,6 +308,7 @@ def guided_nmf(
 def escolher_lambda(
     X: np.ndarray | sparse.spmatrix, Y: np.ndarray, k: int, seed: int,
     grid: list[float], top_n: int, frac_min: float,
+    max_iter: int = 200, diagnostics: list[dict] | None = None,
 ) -> float:
     """Choose the smallest lambda meeting seed recall, without STM measures."""
     if not grid or any(value <= 0 for value in grid) or top_n < 1 or not 0 < frac_min <= 1:
@@ -297,7 +316,7 @@ def escolher_lambda(
     if Y.shape[1] == 0:
         raise ValueError("Nenhum aspecto semeado sobreviveu")
     for lam in sorted(set(grid)):
-        result = guided_nmf(X, Y, k=k, lam=lam, seed=seed)
+        result = guided_nmf(X, Y, k=k, lam=lam, seed=seed, max_iter=max_iter)
         a, b = result["A"], result["B"]
         fractions = []
         assigned_topics = seed_topic_assignment(b)
@@ -306,6 +325,9 @@ def escolher_lambda(
             top_words = set(np.argsort(-a[:, topic])[:top_n])
             seeds = set(np.flatnonzero(Y[:, column]))
             fractions.append(len(top_words & seeds) / len(seeds) if seeds else 0.0)
+        if diagnostics is not None:
+            diagnostics.append({"lambda": float(lam), "seed_recall": fractions,
+                                "min_seed_recall": min(fractions), "max_iter": max_iter})
         if min(fractions) >= frac_min:
             return float(lam)
     warnings.warn(

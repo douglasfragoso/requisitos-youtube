@@ -20,6 +20,7 @@ from _guided import (
     seeded_topic_stability,
     seed_topic_assignment,
     normalize_seeds,
+    scaled_lambda_grid,
 )
 
 
@@ -49,6 +50,29 @@ def test_normalize_seeds_uses_corpus_lemmas_and_extra_stopwords():
         extra_stopwords=["yeah"],
     )
     assert normalized == {"bateria": ["battery", "charge"]}
+
+
+def test_normalize_seeds_preserves_declared_technical_forms_only():
+    normalized = normalize_seeds(
+        {"tela": ["oled", "screens"], "camera": ["lens"],
+         "preco": ["overpriced"], "audio": ["yeah"]},
+        extra_stopwords=["yeah"],
+        preserve_terms=["oled", "lens", "overpriced"],
+    )
+    assert normalized == {
+        "tela": ["oled", "screen"],
+        "camera": ["lens"],
+        "preco": ["overpriced"],
+        "audio": [],
+    }
+
+
+def test_scaled_lambda_grid_balances_corpus_and_seed_norms():
+    x = sparse.csr_matrix(np.array([[3., 4.], [0., 0.]]))
+    y = np.array([[1., 0.], [0., 1.]])
+    assert scaled_lambda_grid(x, y, [0.1, 1.0]) == pytest.approx([1.25, 12.5])
+    with pytest.raises(ValueError, match="semente"):
+        scaled_lambda_grid(x, np.zeros((2, 2)), [1.0])
 
 
 def test_seed_matrix_aligns_dictionary_ids_and_empty_case():
@@ -107,6 +131,18 @@ def test_choose_lambda_uses_smallest_threshold_hit():
     y = np.array([[1.], [1.], [0.], [0.]])
     chosen = escolher_lambda(x, y, k=2, seed=3, grid=[0.5, 0.1, 1], top_n=2, frac_min=1)
     assert chosen == 0.1
+
+
+def test_choose_lambda_records_seed_recovery_before_stm_comparison():
+    x = np.array([[4., 4., 4.], [3., 3., 3.], [0., 1., 0.], [0., 0., 1.]])
+    y = np.array([[1.], [1.], [0.], [0.]])
+    diagnostic = []
+    chosen = escolher_lambda(x, y, k=2, seed=3, grid=[0.1, 1.0],
+                            top_n=2, frac_min=1, max_iter=30,
+                            diagnostics=diagnostic)
+    assert chosen == 0.1
+    assert diagnostic == [{"lambda": 0.1, "seed_recall": [1.0],
+                           "min_seed_recall": 1.0, "max_iter": 30}]
 
 
 def test_choose_lambda_warns_if_grid_never_reaches_seed_fraction():

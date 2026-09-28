@@ -125,7 +125,10 @@ guided:
     aspect_topics: [1, 3, 4, 6, 8, 10, 11, 12]
     livres: 6
     livres_sens: [3, 10]
-    lambda_grid: [0.1, 0.5, 1, 2, 5]
+    lambda_grid: [0.1, 0.5, 1, 2, 5]  # protocolo original, run 20260927_180119
+    protocol: "2026-09-27-v2-normalized-lambda"
+    preserve_seed_terms: [lens, oled, overpriced]
+    alpha_grid: [0.01, 0.03, 0.1, 0.3, 1, 3, 10]
     regra_lambda_top_n: 10
     regra_lambda_frac: 0.8
     bootstrap_runs: 1000
@@ -135,6 +138,12 @@ brett:
   max_frac_vazias: 0.15
   bootstrap_n: 1000
   jaccard_pareamento: 0.3
+  context_v2:
+    protocol: "2026-09-27-v2-three-sentence-window"
+    radius: 1
+    topics: 20
+    pilot_size: 1000
+    pilot_seeds: [42, 7, 2026]
   rodada_a:
     k_range: [10, 15, 20, 25, 30, 35, 40]
   rodada_b:

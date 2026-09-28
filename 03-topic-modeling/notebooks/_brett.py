@@ -20,6 +20,24 @@ from gensim.corpora import Dictionary
 _BRETT_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "run_brett.R"
 
 
+def context_windows(tokenized, video_ids, radius=1):
+    """Concatenate neighboring processed sentences within each video only."""
+    if len(tokenized) != len(video_ids):
+        raise ValueError("sentencas e videos devem estar alinhados")
+    if radius < 0:
+        raise ValueError("radius deve ser nao negativo")
+    windows = []
+    for center in range(len(tokenized)):
+        left = center
+        right = center
+        while left > 0 and center - left < radius and video_ids[left - 1] == video_ids[center]:
+            left -= 1
+        while right + 1 < len(tokenized) and right - center < radius and video_ids[right + 1] == video_ids[center]:
+            right += 1
+        windows.append([word for row in tokenized[left:right + 1] for word in row])
+    return windows
+
+
 def build_tdm(
     tokenized: list[list[str]], dictionary: Dictionary
 ) -> tuple[np.ndarray, list[str]]:

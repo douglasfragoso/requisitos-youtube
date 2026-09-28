@@ -24,3 +24,34 @@ bootstrap do BRETT não foram executados no corpus completo. Um novo protocolo
 precisaria definir previamente mais âncoras, mais contexto por sentença ou
 outra unidade de texto antes de repetir o teste. Os resultados completos e os
 modelos piloto ficam em `data/output/youtube_sent/brett/c0_20260927/`.
+
+## Segunda rodada: janela de três sentenças
+
+O protocolo `2026-09-27-v2-three-sentence-window` preserva cada uma das 114.888
+sentenças centrais e acrescenta até uma vizinha anterior e uma posterior do
+mesmo vídeo. A janela é construída antes de excluir as sentenças removidas
+pelo STM, de modo que a adjacência original seja respeitada. O script
+[`check_brett_context_v2.py`](../../scripts/check_brett_context_v2.py) executou
+o `NMFregress` oficial com T=20 em três amostras de 1.000 janelas.
+
+| Seed | Janelas sem âncora no corpus completo |
+| ---: | ---: |
+| 42 | 11,02% |
+| 7 | 12,26% |
+| 2026 | 11,63% |
+
+O limite numérico de C0 (15%) foi alcançado nas três amostras. A inspeção das
+âncoras e dos oito termos principais de cada tópico ainda encontra vários
+tópicos de discurso genérico, com âncoras como `get`, `think`, `well` e `good`.
+Portanto, a cobertura isolada não valida a interpretação de aspectos nem a
+substituição do STM. A ausência de âncora também varia por categoria de
+produto; as planilhas `coverage_by_category.csv` registram essa diferença.
+Não houve regressão por categoria: a categoria é atribuída por vídeo, e o
+bootstrap por sentença do pacote não incorpora esse agrupamento.
+
+Artefatos: `data/output/youtube_sent/brett/c0_context_v2_20260927/`, incluindo
+`c0_summary.json`, `topic_preview.csv` e `coverage_by_category.csv` em cada
+seed. Uma ablação exploratória adicional excluiu 25 termos genéricos de um
+piloto anterior à correção de adjacência: com T=20, 30 e 35, deixou 21,41%,
+15,87% e 12,98% das janelas sem âncora. Essa ablação de uma seed não é o gate
+pré-fixado e precisa ser repetida com a adjacência corrigida e outras seeds.

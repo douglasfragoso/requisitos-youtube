@@ -12,6 +12,7 @@ from _brett import (
     build_covariate_design,
     build_tdm,
     fracao_documentos_vazios,
+    context_windows,
 )
 
 
@@ -60,6 +61,16 @@ def test_empty_fraction_counts_zero_theta_columns():
 def test_empty_fraction_rejects_missing_documents():
     with pytest.raises(ValueError):
         fracao_documentos_vazios(np.zeros((2, 0)))
+
+
+def test_context_windows_keep_center_and_never_cross_video_boundary():
+    docs = [["first"], ["second"], ["other"], ["last"]]
+    videos = ["a", "a", "b", "a"]
+    assert context_windows(docs, videos, radius=1) == [
+        ["first", "second"], ["first", "second"], ["other"], ["last"]
+    ]
+    with pytest.raises(ValueError, match="alinhad"):
+        context_windows(docs, videos[:-1])
 
 
 def test_r_invoker_reports_missing_rscript(tmp_path, monkeypatch):
