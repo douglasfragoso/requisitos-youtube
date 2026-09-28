@@ -130,6 +130,16 @@ guided:
     regra_lambda_frac: 0.8
     bootstrap_runs: 1000
 
+# === BRETT: gate C0 antes de regressao em sentencas ===
+brett:
+  max_frac_vazias: 0.15
+  bootstrap_n: 1000
+  jaccard_pareamento: 0.3
+  rodada_a:
+    k_range: [10, 15, 20, 25, 30, 35, 40]
+  rodada_b:
+    k_range: [2, 6]
+
 # === Avaliacao ===
 evaluation:
   run_stability: false
