@@ -3,19 +3,24 @@
 ## Unidade e decisão
 
 Leia `sentence` e `context`. Marque `requirement_candidate` como `sim` quando a
-frase relata defeito, limitação, necessidade ou desejo relativo a um produto e
-permite formular uma mudança concreta em hardware, qualidade ou comportamento.
-Marque `nao` quando apenas descreve especificação, elogia, compara sem apontar
-problema, ou fala de assunto sem relação com o produto. Use `incerto` quando o
-contexto não permite decidir. O contexto desambigua a frase; o requisito deve
-estar na frase central.
+frase avalia uma característica do produto que pode ser traduzida em requisito:
+um defeito, limitação, necessidade ou desejo sugere uma mudança; um elogio a
+uma capacidade ou qualidade concreta sugere algo a preservar. Uma comparação
+favorável ou um resultado de teste apresentado como bom também pode servir de
+evidência positiva. Sentimento positivo, negativo e neutro são elegíveis.
+Marque `nao` quando a frase apenas enumera especificações ou medidas sem
+avaliação, faz um elogio vago sem característica identificável, ou trata de
+assunto sem relação com o produto. Use `incerto` quando não é possível
+identificar a característica valorizada ou a direção da avaliação. O contexto
+desambigua a frase; a evidência deve estar na frase central.
 
-Exemplos sintéticos positivos: “I wish this laptop had an Ethernet port”
-(portas); “The fan stays loud even when the computer is idle” (termico);
-“The screen is too dim outdoors” (tela); “The battery lasts only two hours”
-(bateria). Exemplos negativos: “This laptop has an Ethernet port” (fato);
-“I love the screen” (elogio genérico); “This video is sponsored” (fora do
-produto).
+Exemplos sintéticos de `sim`: “I wish this laptop had an Ethernet port”
+(adicionar porta); “The fan stays loud even when the computer is idle”
+(reduzir ruído); “The colors are accurate and the screen stays bright outdoors”
+(preservar fidelidade e brilho); “Games stay above 60 FPS even in busy scenes”
+(preservar desempenho sob carga). Exemplos de `nao`: “This laptop has an
+Ethernet port” (fato isolado); “I love it” (elogio sem característica);
+“This video is sponsored” (fora do produto).
 
 Preencha `aspect_ref` com um ou mais aspectos, separados por vírgula:
 `bateria`, `termico`, `tela`, `portas`, `teclado`, `audio`, `camera`, `preco`,

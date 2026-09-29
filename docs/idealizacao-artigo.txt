@@ -1,0 +1,1131 @@
+IDEALIZAÇÃO DO ARTIGO — ESTADO ATUAL (RQ4 atualizado em 2026-09-28)
+Topic modeling em transcrições de reviews de produtos no YouTube para elicitação
+de requisitos
+
+Base de 2026-09-23, com resultados de RQ4 atualizados em 2026-09-28.
+A seção 0 é o resumo de uma página; as seções 1-10 mantêm o detalhe.
+A verificação geral contra os outputs em disco e o código foi feita em
+2026-09-23; o Registro de Correções está na seção 10.
+Backup da versão de 2026-09-22: scratchpad da sessão de 2026-09-23.
+Melhorias de código decorrentes: `docs/superpowers/specs/
+2026-09-23-prd-melhorias-estado-atual.md`.
+
+
+0. RESUMO (visão de uma página — detalhes nas seções 1-10)
+==========================================================
+
+OBJETIVO
+Avaliar se modelagem de tópicos em dois níveis (documento e sentença com 1
+sentença de contexto), sobre 1.109 transcrições de reviews de produtos no
+YouTube condicionadas por categoria, (a) recupera estruturas temáticas
+diferentes entre níveis e (b) apoia a elicitação de requisitos. No pipeline
+atual, STM de sentença e NMF restrito organizam as evidências; força dos
+tópicos e marcas lexicais de queixa/pedido ordenam a leitura. Um humano decide
+o que é requisito candidato. Sentimento/intenção permanece etapa proposta.
+
+HIPÓTESES (status)
+  H1 documento: STM recupera taxonomia de categoria, não aspecto ...... CONFIRMADA*
+  H2 sentença: surgem aspectos compartilhados entre categorias ........ CONFIRMADA
+  H3 granularidade: dependência de categoria é um gradiente ........... QUALITATIVA
+  H4 subtemas NMF refinam os temas de aspecto ......................... SINAL MISTO
+  H5 priorizar negativas/queixas multiplica a taxa de requisitos ...... NÃO TESTADA
+  H6 modelo guiado por termos reorganiza a evidência por aspecto ...... PILOTOS SEM CONFIRMAÇÃO
+  (*) rerodar o STM de documento com a lista de stopwords (bug, ver 5.1)
+
+PERGUNTAS DE PESQUISA
+  RQ1 Que estrutura temática o STM recupera no documento? ........ RESPONDIDA
+  RQ2 Que aspectos surgem na sentença (+contexto)? ............... RESPONDIDA
+  RQ3 A sentença revela o que o documento não mostra? ............ QUALITATIVA
+  RQ4 Temas/subtemas + sentimento/intenção apoiam, via revisão
+      humana, a identificação de requisitos candidatos? ......... EM ABERTO
+
+METODOLOGIA (pipeline atual e análises paralelas)
+  1. Corpus: 1.109 vídeos, 11 categorias (laptop 57% e phone 27% dos
+     vídeos; 83% das sentenças), legendas (240) + Whisper (869).
+  2. Sentenças: spaCy, 1 sentença de contexto, 130.016 sentenças.
+  3. Dois níveis de análise: STM nos documentos/vídeos para RQ1,
+     `~ s(date) + product_category`, K=12; STM nas sentenças para RQ2-RQ4,
+     `~ product_category`, K=15 (treino em 114.888 sentenças). O STM de
+     documentos é paralelo: sua saída não alimenta o ranking de requisitos.
+  4. Selecionar, pelo tópico STM dominante, os 8 tópicos de sentença
+     interpretados como aspectos; eles reúnem 56.669 sentenças.
+  5. Em cada um desses 8 conjuntos, ajustar NMF restrito comum para obter
+     subtópicos (K em [2,6] por Pareto NPMI × diversidade). Esta etapa não
+     usa Guided NMF.
+  6. Cruzar, pelo ID da sentença, texto/contexto original, tópico STM,
+     subtópico NMF e pesos das duas atribuições. Buscar na frase original
+     marcas lexicais de queixa/pedido; calcular rankings por força temática,
+     termos, combinação e ordem aleatória (detalhes em 4.7).
+  7. Montar amostra cega e revisar manualmente candidatos de mudança e de
+     preservação de qualidades elogiadas. A decisão não é automática.
+  8. Sentimento/intenção (H5), modelos guiados (H6) e BRETT são linhas
+     propostas ou pilotos separados; seus resultados não alimentam o
+     ranking atual (4.5, 4.8, 5.5 e 5.6).
+  K: hoje escolhido por pico de C_v (doc e sentença); o Pareto declarado
+  daria K=8 e K=10. Decisão pendente (4.3).
+
+RESULTADOS PARCIAIS
+  - RQ1: a maioria dos 12 tópicos de documento mapeia ~1:1 em categoria de
+    produto (ex.: tópico "câmera" com efeito negativo forte contra todas as
+    demais categorias). C_v 0,556 no modelo final (0,594 no grid).
+  - RQ2/RQ3: dos 15 tópicos de sentença, 3 são claramente de categoria
+    (gaming laptop, MacBooks, smartphone/câmera), 3 são ruído de discurso e
+    os demais são aspectos quase invariantes entre laptop e phone (preço,
+    bateria/térmico, portas, teclado, áudio, aparência; tela e Apple
+    software são casos a discutir). Dependência de categoria = gradiente,
+    não dois grupos. p-valores não citáveis (pseudo-replicação).
+  - Atribuição difusa: 60% das sentenças têm max(θ) < 0,3 (mediana 0,27);
+    os subconjuntos do NMF restrito, feitos por argmax, carregam muita
+    sentença fracamente ligada ao tema (5.3).
+  - RQ4/H4: subtemas bons em Battery/cooling e Ports; mistos em Display,
+    Gaming, Speakers, Appearance; sem sinal em Price e Keyboard (muleta de
+    discurso).
+  - RQ4 (indício qualitativo): na lista lexical do run de 2026-09-28,
+    1.662/56.669 sentenças (2,93%) têm marcas de queixa/desejo. Isso não é
+    taxa de requisitos: elogios a qualidades concretas também podem fornecer
+    requisitos de preservação. Em 50 frases da amostra cega, o assistente
+    julgou provisoriamente 33 como candidatas, 12 como não candidatas e 5
+    como incertas; ainda não houve anotação humana. H5 segue não testada.
+
+PRÓXIMOS PASSOS (ordem)
+  1. PRD de melhorias (P0: stopwords no documento, métricas do modelo
+     final, rastreabilidade do run de sentença, critério de K).
+  2. Decidir se H5 entra no MVP; as specs de H5 e H6 já foram escritas,
+     mas os modelos não alimentam o pipeline de requisitos atual.
+  3. Limpeza do NMF restrito revisada (limiar de θ, TF-IDF, flags).
+  4. Piloto de anotação humana (RQ4) e reanálise de H3.
+
+
+1. OBJETIVO
+-----------
+Este trabalho avalia se a modelagem de tópicos aplicada em dois níveis de
+granularidade, documento (STM) e sentença com janela de contexto de 1 sentença
+vizinha (STM no resultado atual; BRETT é piloto de substituição, ver 5.6) — sobre
+transcrições de reviews de produtos em vídeo no YouTube, condicionada por
+categoria de produto, (a) recupera estruturas temáticas diferentes entre
+granularidades e (b) apoia a elicitação de requisitos. Para RQ4 no run atual,
+subtemas de NMF restrito organizam a evidência dentro dos aspectos do STM de
+sentença; a força temática e marcas lexicais de queixa/pedido ordenam as
+frases; um humano decide quais são requisitos candidatos. Sentimento/intenção
+é uma proposta adicional de ordenação, ainda não executada.
+
+
+2. HIPÓTESES DE TRABALHO
+-------------------------
+H1 (documento) — CONFIRMADA (rerun pendente, ver 5.1): no nível de documento,
+o STM recupera majoritariamente uma taxonomia de categoria de produto, não uma
+estrutura de aspecto compartilhada entre categorias.
+
+H2 (sentença) — CONFIRMADA: no nível de sentença, o modelo recupera, ao lado de
+tópicos ainda ligados a categoria, uma parcela de aspectos compartilhados entre
+categorias (bateria/térmico, portas, tela, teclado, preço, áudio), ausentes
+como tópico distinto no documento.
+
+H3 (granularidade) — CONFIRMADA QUALITATIVAMENTE; QUANTIFICAÇÃO EM REVISÃO: a
+dependência de categoria dos tópicos de sentença forma um GRADIENTE — alguns
+tópicos são claramente de categoria, outros praticamente invariantes entre
+categorias. A formulação anterior ("separação limpa entre dois grupos") foi
+refutada: dependia da categoria de referência do modelo (ver 5.2).
+
+H4 (subtema via NMF) — SINAL INICIAL, QUALIDADE MISTA: subclusterizar via NMF
+as sentenças dos tópicos de aspecto revela subtemas mais específicos (ex.:
+dentro de bateria/térmico, separar "duração" de "ruído de ventoinha" —
+observado). Qualidade varia entre tópicos (ver 5.3); parte da variação pode
+vir da atribuição difusa por argmax e da ponderação por contagem bruta, não
+só do conteúdo (ver 4.6).
+
+H5 (elicitação por sentimento/intenção) — AINDA NÃO TESTADA: priorizar as
+sentenças negativas ou classificadas como queixa/pedido (pós-hoc) aumenta, de
+forma clara em relação à taxa-base e a um baseline lexical, a proporção de
+sentenças que um humano confirma como requisito candidato; e os requisitos
+confirmados se concentram em temas/subtemas identificáveis. Critério de
+sucesso fixado antes da medição (ver 4.8).
+
+H6 (modelo guiado por termos) — PROPOSTA, EXPLORATÓRIA: um modelo guiado por
+sementes de aspecto definidas antes de ver os resultados (keyATM com
+covariável; Guided NMF) organiza a mesma evidência por aspecto, inclusive no
+documento, onde o STM não supervisionado recupera categoria (H1). Não é teste
+de "descoberta": aspectos semeados aparecem por construção. O que se mede é
+(a) quanto da evidência cai nos tópicos semeados versus nos livres, (b) se os
+tópicos livres revelam aspectos não previstos, (c) concordância com os temas
+do STM de sentença e (d) utilidade para RQ4 frente à busca lexical simples
+(ver 4.9).
+
+
+3. PERGUNTAS DE PESQUISA
+--------------------------
+RQ1 (documento) — RESPONDIDA
+Que estrutura temática o STM recupera em transcrições de reviews de produtos em
+vídeo, condicionado por categoria de produto?
+
+RQ2 (sentença) — RESPONDIDA
+Que estrutura de aspectos é recuperada no nível de sentença (sentença + 1
+sentença de contexto), condicionada por categoria de produto?
+
+RQ3 (granularidade) — RESPONDIDA QUALITATIVAMENTE; QUANTIFICAÇÃO EM REVISÃO
+Os aspectos recuperados na sentença (RQ2) incluem elementos não detectáveis no
+documento (RQ1)? (generalização do achado de granularidade de Ferreira et al.
+2026/SBTI para o domínio de RE/vídeo — não replicação)
+
+RQ4 (elicitação) — EM ABERTO
+A evidência de sentença, organizada em temas e subtemas (NMF) e priorizada por
+força temática ou marcas de queixa/pedido no teste atual, apoia, via revisão
+humana, a identificação de requisitos candidatos? Em que temas e subtemas
+eles se concentram? Sentenças positivas, negativas e neutras continuam
+elegíveis; a etapa planejada de sentimento/intenção em H5 apenas acrescentaria
+outras formas de ordenação, sem filtro automático. A decisão é sempre humana.
+
+H6 não abre RQ nova: é triangulação de RQ1/RQ3 e baseline de RQ4.
+
+Fora de escopo neste artigo (trabalho futuro): sentimento como covariável de
+prevalência.
+
+
+4. METODOLOGIA
+---------------
+4.1 Corpus
+1.109 transcrições de vídeo de review de produto no YouTube, 11 categorias de
+produto. Fontes: legendas da plataforma (240 docs) e transcrição via Whisper
+(869 docs).
+Vídeos por categoria: laptop 629, phone 276, other 57, tablet 42, headphone 36,
+watch 20, camera 14, desktop 12, console 9, monitor 9, vr 5.
+Desbalanceamento forte: laptop (56,6%) + phone (26,6%) = 83% das sentenças.
+Consequência: "compartilhado entre categorias" é, na prática, "compartilhado
+entre laptop e phone"; categorias com < 20 vídeos têm efeitos de prevalência
+pouco confiáveis. Tratar como limitação e agrupar categorias pequenas nas
+análises de efeito (ver 4.4).
+
+4.2 Pré-processamento e segmentação
+Limpeza em nível de documento preservando cópia bruta; segmentação em sentença
+via spaCy, nunca cruzando fronteira de documento, com 1 sentença de contexto
+por sentença-alvo. Restauração de pontuação aplicada só a legendas. Resultado:
+130.016 sentenças (91.517 Whisper, 38.499 legenda), média de 15,9
+palavras/sentença, 8,8% fragmentos, 5,0% duplicatas exatas. Boilerplate de
+engajamento do YouTube (like/subscribe/sino) é raro no corpus: 0,11% (131
+sentenças) do input do STM de sentença — medido com regex estreita; é piso,
+não valor (ver 5.3).
+
+4.3 STM em nível de documento (RQ1)
+Prevalência `~ s(date) + product_category`. Grade K
+[3,5,7,8,10,12,15,20,25,30], faixa admissível [8,25]. K=12, escolhido pelo
+PICO DE C_v (`stm_best_k: 12` pinado em `params.yaml`; notebook usa
+`max(scores)` sobre C_v). σ=0, γ=L1 (grade σ×γ também por C_v).
+R1 corrigido (2026-09-27): o notebook passa `extra_stopwords`; a lista do
+documento ganhou "maybe" e "basically" além de "yeah". O novo run
+`youtube_doc_20260927_175555` passou no teste de ausência dessas palavras
+e H1 foi reavaliada em §5.1. O grid K anterior precede a limpeza, então
+seus escores não são atribuídos ao corpus corrigido.
+Robustez de R1: no mesmo input corrigido, com σ=0, γ=L1 e seed 42, os
+treinos de K=8 e K=15 estão em `data/output/youtube_doc/r1_robustness/`;
+ambos mantêm maioria de tópicos concentrados em uma categoria (§5.1).
+PENDENTE: o protocolo antes descrito (Pareto coerência semântica ×
+exclusividade, desempate por menor K) daria K=8, não 12. Decidir entre
+(a) declarar C_v como critério no texto, ou (b) reformular a escolha usando
+Pareto e a robustez observada. Não descrever como Pareto enquanto não for.
+Apoio possível para (a)+(b): métricas automáticas de coerência correlacionam
+mal com julgamento humano (candidatas: Hoyle et al., 2021; Doogan & Buntine,
+2021) — argumento para não depender de um único índice e mostrar robustez.
+Nota: o `CLAUDE.md` do repositório descreve a seleção do STM como Pareto; o
+código usa max(C_v). Alinhar a documentação à decisão tomada.
+
+4.4 STM em nível de sentença (RQ2) — resultado atual
+Prevalência `~ product_category` (sem covariável temporal — uma sentença herda
+a data do vídeo, sem sinal adicional). Unidade: sentença + 1 sentença de
+contexto, após remoção de fragmentos/duplicatas e sentenças < 5 tokens. Grade
+de K e hiperparâmetros avaliada em amostra estratificada por categoria (25.000
+sentenças, seed=42); treino final no corpus completo (116.111 sentenças no
+input; 114.888 após prepDocuments). Faixa admissível [10,40]. K=15, escolhido
+pelo PICO DE C_v (pinado em `params.yaml`). σ=0,7, γ=L1 — mas as 8
+combinações σ×γ diferem em C_v por no máximo 0,003 (0,5361-0,5384): ruído;
+declarar os hiperparâmetros como praticamente indiferentes.
+Rastreabilidade (2026-09-27): o run pinado `youtube_sent_20260921_190124`
+foi completado com os quatro exports ausentes, copiados do run
+`youtube_sent_20260920_225112`. Antes da cópia, SHA-256 de `stm_input.csv`,
+`stm_theta.csv`, `stm_beta.csv` e `stm_final.json` coincidiu entre os dois
+runs. O teste de contrato agora verifica explicitamente o run pinado.
+PENDENTE: pelo Pareto declarado, todos os pontos da grade estão na fronteira e
+o desempate por menor K daria K=10. Mesma decisão de 4.3.
+PENDENTE (análise de efeito de categoria, ver 5.2):
+- usar medida independente da categoria de referência (ex.: CV ou razão
+  máx/mín da prevalência prevista entre categorias), não |estimate| máximo;
+- agrupar categorias com < 20 vídeos;
+- p-valores/intervalos por bootstrap por vídeo ou erro-padrão agrupado por
+  `post_id` (116 mil sentenças de 1.109 vídeos não são independentes);
+- robustez: K vizinhos (10/20) e 2-3 seeds (hoje seed único, 42;
+  `run_stability: false`).
+
+4.5 Escolha de método por granularidade
+Documento -> STM: texto longo é o terreno do STM, e ele oferece covariável de
+prevalência com teste formal (estimateEffect), usado para medir o efeito de
+categoria por tópico.
+Sentença -> NMF (método-alvo): STM/LDA são conhecidamente mais frágeis em
+texto curto (Egger & Yu, 2022; candidato: Jiang, Liu & Fisher, 2026). O STM de
+sentença atual não fracassou — recuperou bateria, portas, tela, teclado com
+termos específicos — mas perdeu 3 de 15 tópicos para ruído de discurso. Para
+manter um teste de covariável na sentença com um método adequado a texto
+curto, o candidato é NMF+BRETT (Phelan & Campbell, 2026; código público em
+`github.com/iamdavecampbell/NMFregress`), que é NMF com regressão de
+covariável — troca de método no nível de sentença, não apenas triangulação.
+Ponto a argumentar no texto: trocar de método entre granularidades mistura
+"efeito de granularidade" com "efeito de método" em RQ3. Mitigações: reportar
+o STM de sentença atual ao lado do BRETT e rodar também NMF no documento, para
+ter o mesmo método nos dois níveis.
+Critério de K para NMF/BRETT: NPMI + diversidade decidem (Pareto); C_v é
+reportado mas não decide (C_v anticorrelaciona com NPMI em sentença neste
+projeto).
+Precedente de pipeline em camadas: Cheng et al. (2022, MSHTM) usam NMF para
+temas amplos e BERTopic dentro de cada tema — mesma lógica do STM -> NMF
+restrito deste trabalho.
+
+4.6 NMF restrito (subtemas, RQ4)
+NMF restrito às sentenças dos 8 tópicos de aspecto do STM de sentença
+(`nmf_restrito.youtube_sent.aspect_topics` = [1,3,4,6,8,10,11,12] em
+`params.yaml`; run STM `youtube_sent_20260921_190124`), K por tópico em [2,6].
+Decomposição dentro de um tema já encontrado — scaffold para organizar a
+leitura humana, não achado independente nem 5ª granularidade. Sentenças
+reconstruídas por alinhamento posicional com o `theta` do STM (guardado por
+`assert`); qualquer mudança de filtragem pré-STM quebra esse alinhamento.
+Se a sentença migrar para NMF/BRETT (4.5), essa etapa passa a decompor os
+tópicos do próprio NMF e a dependência posicional do STM desaparece.
+Duas escolhas de implementação que afetam a qualidade (2026-09-23):
+- Atribuição por argmax de θ, sem limiar. 60% das sentenças têm
+  max(θ) < 0,3 (ver 5.3): os subconjuntos misturam sentenças centrais e
+  periféricas do tema. Testar o ajuste só com θ ≥ τ (τ = 0,3 / 0,4),
+  mantendo todas as sentenças no export, marcadas.
+- NMF do gensim sobre contagens brutas (BoW), sem TF-IDF: favorece palavras
+  frequentes ("laptop", "good", "well", "actually"). Testar TF-IDF (NMF do
+  sklearn, init nndsvd) e stoplist local de marcadores de discurso.
+Os dois testes vêm antes da bigramização prevista em 6.1 — podem torná-la
+desnecessária.
+
+4.7 Revisão humana de evidência (RQ4)
+Pipeline operacional do run `20260928_v4`:
+  a) Partir das frases originais com contexto e do STM de SENTENÇAS
+     `youtube_sent_20260921_190124`. Cada frase tem um tópico STM dominante
+     e uma distribuição de pesos entre os 15 tópicos.
+  b) Reter as frases cujo tópico dominante pertence aos 8 tópicos de
+     aspecto [1, 3, 4, 6, 8, 10, 11, 12]. Para cada conjunto, usar o NMF
+     RESTRITO comum já ajustado; ele atribui um subtópico e seus pesos.
+     Assim, a sequência para a busca é STM de sentença -> seleção por
+     aspecto -> NMF dentro de cada aspecto. Ela cobre 56.669 frases.
+  c) Cruzar as saídas do STM e do NMF com a frase original por `sent_id`.
+     O cruzamento liga três informações da MESMA frase: texto/contexto,
+     tópico STM e subtópico NMF. Não combina tópicos do STM de documento.
+  d) Procurar na frase original expressões de queixa/pedido, como `i wish`,
+     `missing`, `problem` e `disappointing`. Registrar se houve marca lexical
+     e quantos padrões distintos foram encontrados. No run atual, 1.662 de
+     56.669 frases têm ao menos uma marca (2,93%). Elogios específicos podem
+     ser requisitos candidatos mesmo sem essas palavras.
+  e) Ordenar o MESMO conjunto de 56.669 frases de quatro maneiras:
+     `topico`: peso do tópico STM dominante × peso do subtópico NMF
+       dominante, em ordem decrescente;
+     `lexical`: primeiro frases com marca, depois número de padrões
+       encontrados; desempates são aleatórios com seed fixa;
+     `topico_lexical`: primeiro presença de marca, depois número de
+       padrões e só então o produto dos pesos temáticos;
+     `aleatoria`: ordem aleatória com seed fixa, para comparação.
+     O produto dos pesos mede força da atribuição temática, não a
+     probabilidade de a frase conter um requisito. A combinação atual
+     prioriza o sinal lexical; ela não é um classificador treinado.
+  f) Selecionar os top-50 das três primeiras listas, eliminar duplicatas
+     e acrescentar 100 frases da ordem aleatória fora desses top-50.
+     Resultado: 205 frases únicas em `amostra_cega.csv`, com método e
+     posição ocultos em `amostra_origem.csv` para a revisão humana.
+
+Na amostra cega atual, `requirement_candidate`, `aspect_ref` e `review_notes`
+ficam vazios até a anotação humana. A tabela antiga de 130.016 frases tem
+também `review_decision`, mas não alimenta este run.
+Sentenças negativas, positivas e neutras continuam elegíveis. Uma crítica ou
+pedido pode indicar mudança; um elogio a qualidade/capacidade concreta pode
+indicar algo a preservar. Fatos isolados e elogios sem característica
+identificável não bastam. O guia operacional está em
+`04-requirements/guia_anotacao_rq4.md`. Protocolo de concordância entre
+anotadores (um ou dois anotadores, kappa) ainda em aberto.
+Nomes de tema/subtema gerados por LLM NÃO são confiáveis (ver 5.1 e 5.3): na
+tabela, palavras-chave de cada tópico são a identificação principal; o nome
+é rótulo provisório, verificado por amostragem antes de uso no texto. O modelo de
+nomeação atual é pequeno (`gemma2:2b`), o que ajuda a explicar os erros.
+O Guided NMF de 5.5 é outro modelo de sentença, testado separadamente como
+alternativa guiada por sementes. O BRETT de 5.6 é um piloto de viabilidade de
+um possível substituto do STM na sentença. Nenhuma dessas saídas entra nas
+etapas (a)-(f) deste pipeline.
+
+4.8 Sentimento/intenção pós-hoc e critério de sucesso do MVP (RQ4/H5)
+No desenho proposto para H5, sentimento entraria como tag por sentença, nos
+temas de aspecto — não como covariável de prevalência nem como filtro.
+Uso proposto: ordenar a leitura humana
+(negativas/queixas primeiro) e reportar, por tema/subtema, a proporção de
+negativas.
+Cuidados:
+- Queixa em review costuma ser branda ou vir como desejo ("I wish it
+  had...", "I was hoping for better"), que um classificador de polaridade
+  pode marcar como neutro. Classificar também INTENÇÃO (queixa / pedido de
+  recurso / elogio / comparação / outro), na linha de Maalej & Nabil (2015),
+  Panichella et al. (2015) e Sihag et al. 2023 [1], em vez de só polaridade.
+- Uma sentença pode avaliar dois aspectos com polaridades opostas ("great
+  screen, but the battery is too small"): sentimento por aspecto (ABSA:
+  PyABSA, SetFitABSA) é alternativa a avaliar.
+- Classificar a sentença-alvo junto com a sentença de contexto.
+- Modelo ainda não escolhido (candidatos: RoBERTa cardiffnlp para
+  polaridade; zero-shot/LLM para intenção; nenhum modelo de sentimento
+  baixado localmente). Validar em amostra anotada à mão (F1 macro por classe).
+Desenho do teste (a detalhar na spec de sentimento):
+- Ordenações comparadas sobre as mesmas sentenças: aleatória (taxa-base),
+  lexical (marcas de queixa/desejo, ver 5.4), polaridade negativa, intenção
+  queixa/pedido.
+- Métrica principal: precisão@k da revisão humana ("é requisito candidato?")
+  por ordenação; recall estimado por amostra das não priorizadas.
+Critério de sucesso (fixar ANTES de ver os números):
+- Precisão: das negativas priorizadas, proporção que o humano confirma como
+  requisito candidato — comparar com a taxa-base medida na amostra aleatória
+  e com o baseline lexical; a meta numérica deve ser fixada antes da anotação
+  humana, sem usar os julgamentos exploratórios do assistente como gabarito.
+- Recall: amostra das não-negativas, para medir quantos requisitos o
+  sentimento deixaria passar, inclusive os sustentados por elogios.
+- Distribuição: temas/subtemas onde os requisitos confirmados se concentram.
+Se a priorização multiplicar a taxa-base, RQ4 tem resultado; se não, é achado
+publicável (sentimento não basta; é preciso classificar intenção).
+
+4.9 Modelos guiados por termos (H6) — mapeamento e pilotos
+Existe versão guiada por palavras-semente para LDA e NMF; para STM, não
+nativamente.
+- LDA: SeededLDA (Jagarlamudi, Daumé III & Udupa, EACL 2012 — sementes
+  enviesam tópico-palavra e documento-tópico); pacote R `seededlda`; keyATM
+  (Eshima, Imai & Sasaki — tópicos com palavras-chave + tópicos livres, com
+  versão com covariáveis de prevalência). Tushev et al. 2022 [3] já aplicam
+  modelo com palavras-chave a reviews de apps: é o precedente direto em RE.
+- NMF: Guided NMF (Vendrow, Haddock, Rebrova & Needell, arXiv 2010.11365;
+  código `github.com/jvendrow/GuidedNMF`; comparado a Seeded LDA); GSSNMF (Li
+  et al., Algorithms 15(5):136, 2022 — sementes + rótulos); NMF restrito
+  para tópicos minoritários (Ebrahimi & Peltonen, EMNLP 2025 — lista de
+  sementes SEM divisão prévia em tópicos, estudo de caso em comentários do
+  YouTube). Este último encaixa em "queixa/desejo" como tema minoritário
+  (~4-5% das sentenças no léxico de 2026-09-23; não é taxa de requisitos).
+- STM: sem sementes nativas. `init.type = "Custom"` com `custom.beta` só
+  semeia a inicialização (o tópico pode se afastar). O equivalente prático de
+  um "STM guiado" é o keyATM com covariáveis.
+Desenho proposto (a detalhar na spec):
+- Sementes de aspecto fixadas ANTES de rodar e de fonte externa ao modelo
+  (ex.: taxonomia de ficha técnica: bateria, térmico/ventoinha, tela, portas,
+  teclado/trackpad, áudio, câmera, preço, construção). Não derivar sementes
+  dos tópicos do STM (circular).
+- Documento: keyATM com covariável de categoria, sementes de aspecto +
+  tópicos livres -> quanto da massa cai em aspecto versus categoria (H1).
+- Sentença: Guided NMF (ou keyATM) com as mesmas sementes -> concordância
+  com os temas do STM de sentença (ex.: NMI/ARI entre atribuições).
+- RQ4: busca por termos (sementes + marcas de queixa) como baseline lexical
+  da ordenação por sentimento/intenção (4.8).
+Risco: aspectos semeados aparecem por construção; reportar como
+organização/triangulação, nunca como evidência de descoberta para RQ1/RQ2.
+
+
+5. RESULTADOS PARCIAIS
+------------------------
+5.1 RQ1 — STM documento (K=12, run `youtube_doc_20260927_175555`)
+Corpus: 1.109 documentos. R1 aplicado: `stopwords_emojis` passou à
+lematização, com "maybe" e "basically" adicionados à lista; nenhum dos três
+termos problemáticos (incluindo "yeah") aparece nas palavras-chave finais.
+C_v do modelo final 0,588 (`coherence_cv_recomputed`), σ=0, γ=L1;
+topic diversity (Dieng) 0,75, exclusividade 0,470. O C_v 0,594 do grid
+anterior foi medido antes dessa limpeza, portanto não é métrica do novo run.
+Reavaliação de H1 pelo tópico dominante × categoria: 8 dos 12 tópicos têm
+≥77% de seus documentos em uma categoria (seis em laptop, um em phone com
+94%, um em headphone com 83%). O corpus tem 56,7% laptop no total. Os
+tópicos 3, 10 e 11 são mais mistos (máximos de 36%, 30% e 32%);
+o tópico 0 tem 64% laptop, próximo da frequência basal. A predominância de
+estrutura de categoria no documento persiste, mas a afirmação anterior de
+mapeamento quase 1:1 para a maioria exige essa ressalva. Nomes gerados pelo
+LLM precisam ser conferidos contra palavras e documentos antes de citação.
+Robustez descritiva com a mesma regra de ≥77% dos documentos de um tópico
+na categoria majoritária (não é um critério de seleção de K): K=8, 5/8;
+K=12, 8/12; K=15, 10/15. Assim, a maioria numérica se mantém em K vizinhos,
+mas há tópicos mistos em todos. Os treinos K=8 e K=15 usaram o input
+corrigido de R1, σ=0, γ=L1 e seed 42.
+
+Exemplos reais do export `stm_topics_for_eval.csv` do DOCUMENTO (nome
+automático; seis primeiros top terms; descrição interpretativa):
+  - T1 `Smartphone Review` — phone, camera, pixel, photo, galaxy, samsung.
+    Concentra reviews de smartphones e câmeras de celular.
+  - T5 `Headphone Review` — headphone, ear, noise, airpods, case, pair.
+    Concentra fones, encaixe e cancelamento de ruído.
+  - T3 `Camera Product Review` — mouse, switch, monitor, cable, control,
+    connect. Os termos sugerem periféricos/conexões; o nome automático
+    "Camera Product Review" não descreve bem esse tópico.
+Esses exemplos mostram por que os rótulos são conferidos contra termos e
+documentos antes de entrarem na interpretação de RQ1. O STM de documento
+não é usado para selecionar frases de requisitos.
+
+5.2 RQ2/RQ3 — STM sentença (K=15, run `youtube_sent_20260921_190124`,
+exports recuperados de run idêntico; ver 4.4)
+Corpus: 114.888 sentenças (após prepDocuments). C_v 0,544 — medido no grid,
+sobre a amostra de 25 mil; o C_v do modelo final no corpus completo não foi
+calculado. Coerência semântica do `stm` (UMass) -179,1 (grid). Topic
+diversity (Dieng) 0,953. Métricas de coerência/exclusividade NÃO são
+comparáveis entre documento e sentença (vocabulários e unidades diferentes).
+
+Dependência de categoria por tópico. A coluna "Efeito máx." é o |estimate|
+máximo do estimateEffect, que mede cada categoria contra a referência
+`camera` (14 vídeos) — por isso não serve sozinha para classificar. As colunas
+"CV" (dispersão da prevalência prevista entre as 11 categorias, independente
+da referência) e "laptop × phone" (onde estão 83% dos dados) são as medidas
+preferidas.
+
+  Tópico              Efeito máx.   CV     laptop×phone   Leitura atual
+  General impressions   0,003      0,05       1,02        Ruído de discurso
+  Price/value           0,015      0,07       1,02        Aspecto
+  System setup          0,033      0,19       1,39        Ruído de discurso
+  Battery/cooling       0,037      0,19       1,15        Aspecto
+  Speakers/software     0,036      0,22       1,25        Aspecto
+  Ports/connectivity    0,054      0,22       1,03        Aspecto
+  Keyboard build/design 0,055      0,24       1,38        Aspecto
+  Purchase advice       0,039      0,26       1,27        Ruído de discurso
+  Gaming frame rate     0,057      0,31       1,50        Aspecto (limítrofe)
+  Appearance/finish     0,047      0,32       1,13        Aspecto
+  Apple software/apps   0,101      0,42       1,00        Marca/ecossistema?
+  Display/brightness    0,062      0,45       1,04        Aspecto dependente
+                                                          de aplicabilidade
+  Proc/MacBooks         0,099      0,46       2,62        Categoria
+  Laptop gaming perf    0,093      0,58       3,05        Categoria
+  Smartphone/camera     0,185      0,63      10,71        Categoria
+
+Achado: a dependência de categoria é um gradiente. Três tópicos são
+claramente de categoria (Laptop gaming, Proc/MacBooks, Smartphone/camera);
+vários aspectos (preço, bateria/térmico, portas, teclado, áudio, aparência)
+são praticamente invariantes entre laptop e phone e não existiam como tópico
+distinto no documento (RQ1) — esta é a evidência de RQ3, em forma
+qualitativa. Casos que exigem discussão:
+- Display/brightness: invariante entre laptop e phone, mas forte em monitor
+  (0,129) e fraco em headphone (0,021) — dependência por aplicabilidade do
+  componente (headphone não tem tela), não por "ser tópico de categoria".
+- Apple software/apps: igual em laptop e phone (0,052/0,052); só parece de
+  categoria por causa de desktop (12 vídeos). Possivelmente tópico de
+  marca/ecossistema.
+Quantificação definitiva pendente (ver 4.4): agrupamento de categorias
+pequenas, bootstrap por vídeo, robustez em K e seeds. Os p-valores atuais do
+estimateEffect estão inflados por pseudo-replicação e não devem ser citados.
+
+Os oito tópicos de ASPECTO usados na busca de requisitos, com os seis
+primeiros top terms do export `stm_topics_for_eval.csv` de SENTENÇA:
+  - T1 `Keyboard build and design` — feel, little, device, keyboard, bit,
+    build. Leitura: teclado, sensação de uso e construção; termos genéricos.
+  - T3 `Price value and tradeoffs` — good, think, big, people, price,
+    probably. Leitura: preço/valor misturado a linguagem de opinião.
+  - T4 `Battery life and cooling` — battery, life, fan, small, hour, long.
+    Leitura: autonomia e comportamento térmico/ventoinha.
+  - T6 `Speakers software and features` — time, speaker, sound, software,
+    love, awesome. Leitura: áudio com mistura de software e avaliação geral.
+  - T8 `Device appearance and finish` — look, light, work, different, case,
+    black. Leitura: aparência, cor e acabamento; há vazamento de categoria.
+  - T10 `Ports charging and connectivity` — right, port, button, usb,
+    support, card. Leitura: portas, carregamento e posição de controles.
+  - T11 `Display panel and brightness` — screen, display, inch, panel,
+    color, large. Leitura: painel, tamanho, cor e brilho da tela.
+  - T12 `Gaming frame rate performance` — high, run, game, end, play, low.
+    Leitura: jogos e desempenho; inclui conteúdo técnico além de FPS.
+Os nomes são rótulos automáticos, não descrições garantidas de todas as
+frases atribuídas. O export contém os 15 tópicos STM de sentença; apenas
+esses oito alimentam o NMF restrito e o ranking atual.
+
+5.3 RQ4 — NMF restrito (rodado 2026-09-22, runs `nmf/topicNN/topicNN_20260922_*`)
+Atribuição ao tema (verificado 2026-09-23 em `stm_theta.csv`): max(θ) médio
+0,297, mediana 0,267; 60,2% das sentenças com max(θ) < 0,3 e 22,5% com
+< 0,2. Por tema de aspecto (sentenças por argmax; % com max(θ) < 0,3):
+  Keyboard (01)   12.294; 64%     Price (03)       8.488; 78%
+  Battery (04)     5.379; 53%     Speakers (06)    4.291; 68%
+  Appearance (08)  5.109; 68%     Ports (10)       7.924; 61%
+  Display (11)     7.886; 53%     Gaming (12)      5.298; 58%
+Os temas com NPMI mais baixo (Price, Keyboard) estão entre os mais difusos.
+Hipótese a testar (4.6): parte do ruído dos subtemas vem da atribuição.
+Qualidade mista entre os 8 tópicos. Estado por tópico após verificação por
+amostragem de sentenças:
+- Battery/cooling (NPMI 0,099): pronto. Separa ruído/calor de ventoinha de
+  duração de bateria.
+- Ports/connectivity (NPMI 0,110): usável. O componente nomeado pelo LLM
+  "Political Opinion" (1.991 sentenças) NÃO é ruído puro: mistura "left/right"
+  genérico com queixas reais de layout de teclado ("I don't like the position
+  of the page up and page down keys"). Não podar — marcar.
+- Display/brightness (NPMI 0,047): usável, mas NPMI entre os mais baixos;
+  não chamar de "pronto" sem amostragem adicional.
+- Gaming frame rate (NPMI 0,086): componentes fora de "frame rate" (ex.:
+  "Power Consumption": watts de GPU, temperatura, ausência de G-Sync) são
+  aspecto técnico real, não ruído. Não podar — o critério é utilidade para
+  elicitação, não fidelidade ao nome do tópico.
+- Speakers/software (NPMI 0,067): o componente nomeado "Social Media
+  Discussion" (1.423 sentenças, 33% do tópico) é majoritariamente frase de
+  OPINIÃO/afeto ("I have to say I absolutely love it", "So I was hoping for
+  better there"). Boilerplate literal: 7,9% (113 sentenças) com a regex do
+  plano; 10,5% com uma regex estreita alternativa; 17,6% com regex ampla
+  ("thumbs up", "comment", "let me know", "thanks for watching"...). Mesmo
+  no teto, é minoria. É justamente onde está sinal de queixa/desejo para RQ4.
+- Appearance/finish (NPMI 0,071): vazamento de categoria — componente sobre
+  AirPods/earbuds tem 1.986 de 5.109 sentenças (39%).
+- Price/value (NPMI 0,025) e Keyboard build/design (NPMI 0,043): componentes
+  se diferenciam por muleta de discurso ("well", "actually", "bit"), não por
+  conteúdo. Testar antes limiar de θ e TF-IDF (4.6); depois bigramização;
+  senão, achado negativo.
+Observação geral: quase todos os subtemas contêm "laptop" (efeito do
+desbalanceamento, 4.1, e da ponderação por contagem bruta, 4.6).
+
+Exemplos reais de SUBTÓPICOS do NMF restrito (`nmf_topics_for_eval.csv` de
+cada run; seis primeiros top terms; leitura interpretativa):
+  - Dentro de T1 Keyboard: N0 `Keyboard Design` — feel, keyboard, key,
+    type, comfortable, good; conforto e digitação.
+  - Dentro de T3 Price: N0 `Price Tracking` — price, laptop, point, buy,
+    range, sale; preço de compra e faixa de valor.
+  - Dentro de T4 Battery/cooling: N0 `Laptop Cooling` — fan, noise,
+    laptop, loud, heat, performance; ruído e calor. N1 `Battery Performance`
+    — battery, life, good, long, laptop, well; autonomia.
+  - Dentro de T6 Speakers/software: N2 `Audio Quality` — sound, loud,
+    good, bass, well, volume; som, graves e volume. N0 `Social Media
+    Discussion` — love, thumb, button, hope, hit, sub; nome impreciso,
+    misturando opinião e chamada para interação.
+  - Dentro de T8 Appearance: N2 `Lighting Equipment` — light, key,
+    color, laptop, backlight, rgb; iluminação do teclado. N3 `Wireless
+    Earbuds` — case, airpods, ear, new, come, actually; vazamento de
+    categoria para fones.
+  - Dentro de T10 Ports: N1 `USB Port Features` — port, usb,
+    thunderbolt, charge, support, hdmi; conexões. N0 `Political Opinion`
+    — right, key, left, laptop, hand, keyboard; o conteúdo inclui posição
+    de teclas, apesar do nome gerado pelo LLM.
+  - Dentro de T11 Display: N2 `Light Panel Analysis` — color, bright,
+    good, panel, accurate, brightness; cor e brilho. N3 `Screen Quality`
+    — screen, laptop, look, content, brightness, ratio; uso e qualidade da tela.
+  - Dentro de T12 Gaming: N3 `Action Sequence` — frame, second, rate,
+    setting, graphic, low; FPS e configurações gráficas, não sequência de
+    ação. N1 `Power Consumption` — mode, performance, laptop, power,
+    drop, draw; consumo e modos de desempenho.
+São exemplos de componentes, não o inventário completo dos 32 subtópicos.
+As descrições em português são interpretações dos termos e de frases
+amostradas; os nomes em inglês são os rótulos exportados pelo modelo de
+nomeação e podem induzir ao erro.
+
+5.4 RQ4 — sinal de elicitação (leitura exploratória, sem validação humana)
+Contagem por palavras-chave de queixa/desejo ("I wish", "should have",
+"disappointing", "I don't like", "issue"...) nas 56.669 sentenças dos 8 temas
+NMF: ~2.460 sentenças (4,3%), variando de 2,8% (Gaming) a 7,3% (Speakers) por
+tema — coerente com o ~8% de um mini-piloto anterior. Recontagem de
+2026-09-23 com léxico mais amplo (inclui "problem", "annoying",
+"unfortunately", "downside", "missing", "lack"...): 2.709 sentenças (4,8%),
+de 2,3% (Gaming) a 9,9% (Appearance). Essas porcentagens medem apenas a
+frequência de palavras de queixa/desejo, que depende do léxico; não medem a
+prevalência de requisitos, pois feedback positivo também é elegível. Numa
+amostra antiga de 12 frases com sinais lexicais, ~8 pareciam candidatas
+(avaliação a olho pelo critério anterior, sem considerar elogios). Exemplos:
+  - "Number one, I don't like the position of the AC adapter plug-in spot."
+  - "I feel like more laptops in general should have a physical cover over the
+    lens."
+  - "There are some features that I wish it did have, particularly the ability
+    to plug in a wired connection."
+  - "...poor battery life and ... annoyances like heat and fan noise during
+    performance use."
+Leitura: há candidatos no material, e os temas podem ajudar a agrupá-los.
+A prevalência de requisitos no corpus permanece desconhecida. A busca por
+queixas/pedidos é um baseline de ordenação, mas não cobre todos os requisitos
+de preservação presentes em elogios (4.8).
+Tabela de revisão (`04-requirements`, 130.016 linhas) ainda desatualizada:
+usa o tópico herdado do documento (12 nomes de categoria), não o tema/subtema
+de sentença.
+Preparação de revisão em 2026-09-28: uma nova tabela separada uniu as 56.669
+sentenças dos oito temas de aspecto aos IDs do STM de sentença, subtemas NMF,
+texto original e contexto. Uma lista lexical pré-fixada de queixa/pedido
+marcou 1.662 sentenças (2,93%); são indícios, não requisitos confirmados.
+Foram gerados rankings por tópico, léxico e combinação, além de uma amostra
+cega de 205 sentenças únicas (top-50 por método e 100 aleatórias fora desses
+tops), sem decisões humanas preenchidas. O score de tópico é uma heurística
+exploratória: peso STM dominante × peso NMF dominante. O run válido é
+`04-requirements/data/output/topicos_requisitos/20260928_v4/`; as saídas v1-v3
+foram pilotos de diagnóstico e não devem entrar na avaliação. Até a anotação,
+não há precisão/recall de requisitos nem veredito RQ4/H5.
+
+Auditoria qualitativa corrigida em 2026-09-28: o assistente leu 50 das 205
+frases cegas, com contexto quando necessário, e só depois consultou o método
+que as selecionou e os nomes dos tópicos. O primeiro julgamento descartava
+elogios; após explicitar que características positivas também sustentam
+candidatos de preservação, 12 frases passaram de `nao` para `sim`. Resultado
+provisório: 33 `sim`, 12 `nao`, 5 `incerto`. Por origem registrada da seleção:
+  - tópico: 8 `sim`, 4 `nao` (12 frases);
+  - lexical: 12 `sim`, 3 `nao`, 3 `incerto` (18 frases);
+  - tópico + lexical: 4 `sim`, 1 `nao` (5 frases);
+  - aleatória: 9 `sim`, 4 `nao`, 2 `incerto` (15 frases).
+É uma subamostra intencional pequena, e a origem registrada não define grupos
+exclusivos de ranking. Esses totais não estimam precisão@50, recall nem taxa
+de requisitos no corpus. A planilha de anotação humana segue vazia.
+
+Exemplos rastreáveis na amostra (ID local; trecho; caminho STM/NMF; leitura
+provisória do assistente). O `topic_score` citado é o produto dos pesos,
+NÃO uma probabilidade de requisito:
+  - ID 42: "colors are extremely accurate ... 400 nits"; T11 Display / N2
+    Light Panel Analysis; score 0,692; sem marca lexical. Candidato positivo:
+    preservar fidelidade de cor e brilho. Mostra que elogio pode ser útil
+    mesmo quando a busca por queixas não o prioriza.
+  - ID 144: "I could barely hear the fans going in a quiet room"; T4
+    Battery/cooling / N0 Laptop Cooling; score 0,684; sem marca lexical.
+    Candidato positivo: manter baixo o ruído da ventoinha em uso leve.
+  - ID 108: "... still above 60 frames per second" em cena intensa; T12
+    Gaming / N3 Action Sequence; score 0,714; sem marca lexical. Candidato
+    positivo: preservar desempenho acima de 60 FPS sob essa carga.
+  - ID 62: "almost completely lack bass ... sounds ... tinny"; T6
+    Speakers/software / N2 Audio Quality; score 0,759; com marca lexical.
+    Candidato de mudança: melhorar graves e clareza do som.
+  - ID 105: "screen door effect ... PWM flickering"; T11 Display / N3
+    Screen Quality; score 0,590; com marca lexical. Candidato de mudança:
+    reduzir cintilação PWM e efeito de tela em baixo brilho.
+  - ID 55: pede undervolt de fábrica por problemas térmicos; recebeu T1
+    Keyboard / N1 Choice Analysis. A frase é candidata de mudança, mas o
+    aspecto atribuído está errado; não usar rótulo de tópico como gabarito.
+  - ID 169: enumera portas USB-A/Ethernet presentes; T10 Ports / N1 USB
+    Port Features, score 0,724. Atribuição temática forte, mas frase
+    descritiva sem avaliação; `nao` pelo critério atual.
+  - ID 185: "I wish I'd broken the ... NDA"; T6 Speakers/software / N0
+    Social Media Discussion, score 0,613; tem marca lexical, mas não fala
+    de requisito do produto. É falso positivo da busca por `wish`.
+Os exemplos mostram tanto acertos quanto limites do ranking: peso temático
+alto não garante requisito e termos lexicais podem ter outro sentido.
+O relatório e as decisões provisórias estão no diretório
+`04-requirements/data/output/topicos_requisitos/20260928_v4/`, nos arquivos
+`auditoria_qualitativa_assistente.md` e
+`auditoria_qualitativa_assistente.csv`; não substituem anotação humana.
+
+5.5 H6 — modelo guiado por termos (resultados operacionais)
+Fase 1, documento: run `keyatm_20260927_180406`, comparado ao STM
+`youtube_doc_20260927_175555`, com 1.109 documentos e dez aspectos semeados
+efetivos. As nove combinações (3, 5 e 8 tópicos livres × seeds 42, 7 e 2026)
+terminaram. Na configuração principal (5 livres, seed 42), a massa média de
+theta foi 0,826 nos semeados e 0,174 nos livres; a mediana do CV entre
+categorias foi 0,626 nos semeados contra 0,842 nos livres. Essa desigualdade
+também valeu na seed 7 (0,657 < 0,862), mas se inverteu na seed 2026
+(0,726 > 0,603). Com 3 livres, valeu nas três seeds; com 8 livres, em duas
+das três. Portanto, a medida automática é sensível à inicialização e ao
+número de tópicos livres. O Jaccard médio do top-10 dos tópicos semeados entre
+pares de seeds foi 0,469 na configuração principal. A planilha cega
+`leitura_humana_cego.csv` tem uma linha por aspecto, dez palavras não semente
+e cinco trechos; o campo `no_aspecto` ainda não foi preenchido pelo autor.
+Assim, o critério pré-registrado de ≥70% de julgamentos "no aspecto" ainda
+não pode ser avaliado, e H6 no documento permanece indeterminada.
+
+Fase 2, sentença:
+Run `gnmf_20260927_180119`, comparado ao STM de sentença pinado
+`youtube_sent_20260921_190124`, com 114.888 sentenças e as sementes congeladas
+em 2026-09-26. A grade pré-fixada de λ foi percorrida antes de calcular a
+concordância. Nenhum valor cumpriu a regra de ≥80% das sementes efetivas no
+top-10 de seu aspecto; o fallback foi λ=5. Na configuração principal (6
+livres, seed 42), o mínimo entre aspectos foi 0% (construção), NMI=0,177,
+ARI=0,110 e apenas 3 dos 8 temas de aspecto do STM tiveram pureza ≥0,5 em
+um tópico semeado. Nas outras duas seeds da configuração principal foram 2/8;
+com 3 ou 10 livres, de 1/8 a 3/8. O critério pré-registrado de concordância
+(≥6/8) não foi alcançado. Como a própria condição para o modelo ser guiado
+falhou, essas medidas são diagnósticas do protocolo atual, não evidência
+conclusiva contra a hipótese H6. Não alterar a lista congelada para melhorar
+o resultado. Revisar a escala do termo de supervisão/λ em protocolo novo,
+registrando a mudança antes de repetir a fase.
+Na configuração principal, a correlação de Spearman entre os CVs dos aspectos
+comparáveis do STM e do Guided NMF foi -0,607 (7 pares); o Jaccard médio do
+top-10 dos tópicos semeados entre as três seeds foi 0,523. São medidas
+descritivas, sem limiar de decisão adicional.
+
+Segunda rodada da Fase 2 (protocolo 2026-09-27-v2-normalized-lambda): as
+formas literais de `lens`, `oled` e `overpriced` foram preservadas na
+normalização das sementes. Ficaram 84 entradas efetivas. A grade de lambda
+normalizada pela energia de X e Y selecionou alpha=0,1 (lambda=136,77), o
+primeiro valor que recuperou pelo menos 80% das sementes no top-10 de cada
+aspecto. Nas nove combinações de 3, 6 e 10 tópicos livres e três seeds, a
+recuperação mínima por aspecto foi pelo menos 90%. Porém, na configuração
+principal (6 livres, seed 42), NMI=0,199, ARI=0,115 e 0/8 temas de aspecto
+do STM alcançaram pureza >=0,5 em tópico semeado; nas outras duas seeds da
+configuração principal, também 0/8. A sensibilidade de 3 e 10 livres teve
+no máximo 1/8. Assim, a supervisão lexical passou, mas o critério de
+concordância H6 (>=6/8) falhou. As palavras dos tópicos semeados ficaram
+dominadas pelas sementes, enquanto apenas 28,12% das sentenças receberam
+um tópico semeado dominante na configuração principal. Artefatos em
+`03-topic-modeling/data/output/youtube_sent/guided/gnmf_20260927_224407/`.
+
+Terceira rodada da Fase 2 (protocolo 2026-09-28-v3-three-sentence-window):
+cada centro foi representado pela frase e pelas vizinhas imediatas do mesmo
+vídeo, construindo o contexto antes de excluir documentos removidos pelo STM.
+As sementes, a regra normalizada de lambda e as três seeds foram mantidas.
+O filtro reteve 10 aspectos e 84 termos-semente; a regra de recuperação
+selecionou lambda=133,59. Nas três execuções principais (6 tópicos livres),
+recall mínimo das sementes ficou em 1,0, mas NMI foi 0,154–0,162, ARI
+0,091–0,100 e nenhum dos oito grupos STM chegou a pureza 0,5 em tópico
+semeado. Só 24,4–24,8% das frases tiveram tópico semeado dominante (28,12%
+na v2, seed 42). Sensibilidades com 3 e 10 livres também ficaram em 0/8
+aspectos com pureza >=0,5. Portanto, adicionar contexto não melhorou H6 e
+reduziu a concordância; recuperar as palavras-semente não equivale a
+reproduzir os agrupamentos STM.
+Leitura qualitativa da seed 42: tópicos semeados ficaram lexicalmente nítidos,
+por exemplo tela (screen, display, panel, resolution, brightness, oled),
+áudio (speaker, sound, volume, audio, bass, mic), portas (port, usb,
+thunderbolt, jack, hdmi, ethernet) e preço (price, cheap, expensive, value,
+budget, cost). Os tópicos livres, porém, incluem um tópico de discurso
+genérico (good, look, think, device, little) e tópicos de produto/categoria
+(pro, macbook, air; phone, camera, iphone), em vez de se alinharem aos oito
+aspectos do STM. Isso ajuda a explicar a divergência, mas não muda o gate
+quantitativo. Artefatos em
+`03-topic-modeling/data/output/youtube_sent/guided/gnmf_context_v3_20260928_204656/`.
+
+
+5.6 BRETT — gate de viabilidade C0 na sentença
+O pacote NMFregress 1.0.1 foi instalado e ajustou dois pilotos reais de 400
+sentenças. Para o STM de sentença pinado `youtube_sent_20260921_190124`, o
+limite mínimo exato de sentenças sem qualquer âncora, com T=15, é 26,6% no
+corpus completo de 114.888 sentenças; as âncoras obtidas no piloto deixam
+52,7% sem cobertura nesse corpus. No menor tema da Rodada B (tema 6, 4.291
+sentenças), com T=6, o limite exato é 31,9%, e o piloto deixa 44,8% sem
+cobertura. Ambos superam o teto pré-fixado de 15% em C0. Em quatro dos oito
+temas da Rodada B o limite já supera 15% mesmo com T=6. Assim, o protocolo
+atual não prossegue para regressão/bootstrap nem substitui o STM de sentença.
+O resultado não descarta BRETT com outra unidade textual, contexto adicional
+ou número de âncoras definido em um novo protocolo. Artefatos do piloto:
+`03-topic-modeling/data/output/youtube_sent/brett/c0_20260927/`.
+
+Segunda rodada (protocolo 2026-09-27-v2-three-sentence-window): a unidade
+foi ampliada para a sentença central e até uma vizinha de cada lado no mesmo
+vídeo. As janelas foram construídas antes da remoção de documentos do STM,
+preservando a adjacência original. Com T=20 e três amostras independentes
+de 1.000 janelas, o pacote oficial NMFregress produziu âncoras que deixaram
+11,02%, 12,26% e 11,63% das 114.888 centrais sem cobertura (seeds 42, 7,
+2026). O limite numérico de C0 (15%) passou. Entretanto, muitas âncoras
+continuaram genéricas (`get`, `think`, `well`, `good`), e a cobertura varia
+entre categorias. Não foi feita regressão: a categoria é atribuída por
+vídeo, mas o bootstrap do pacote reamostra sentenças. A interpretação dos
+tópicos e a inferência agrupada por vídeo ainda são requisitos para usar o
+BRETT como substituto do STM. Artefatos em
+`03-topic-modeling/data/output/youtube_sent/brett/c0_context_v2_20260927/`.
+
+Terceira rodada (protocolo 2026-09-28-v3-filtered-vocabulary): mantidas as
+janelas da frase central e vizinhas no mesmo vídeo; o vocabulário usou
+`no_below=20`, `no_above=0.20` e T=35. O gate C0 passou nas três seeds: as
+frações sem âncora foram 5,93%, 5,55% e 5,58% (média 5,69%), contra
+11,02–12,26% na v2 com T=20. O vocabulário global caiu de 4.445 para 4.444
+termos; logo, os resultados não isolam um efeito do filtro lexical. O aumento
+de T de 20 para 35 é a explicação mais direta para a cobertura maior.
+Qualitativamente há âncoras com termos de produto (`cpu` -> cpu/core/intel;
+`display` -> display/resolution/panel/bright/refresh/oled;
+`battery` -> battery/hour/life/charge/milliamp/day/watt/long), mas continuam
+âncoras discursivas muito frequentes (`know`, `get`, `well`, `good`, `think`).
+Exemplo do piloto seed 42: `well` recupera noise/sound/headphone, enquanto
+`know` mistura people/sound/need/great/turn/window; nem toda âncora vira um
+tópico semanticamente limpo. Assim, C0 aprovado significa cobertura, não
+qualidade interpretável nem elicitação de requisitos.
+Não rodei a fatoração no corpus inteiro nem a regressão: o bridge atual do
+NMFregress cria uma TDM densa e chama QR sobre sua transposta (`project=FALSE`).
+Com 4.444 termos e 114.888 frases, só a TDM em double ocupa cerca de 4,1 GB,
+antes das cópias e fatores temporários do QR; havia ~11,9 GB de RAM disponível.
+Esse custo não dá margem segura para executar a etapa completa nesta máquina.
+Artefatos em
+`03-topic-modeling/data/output/youtube_sent/brett/c0_context_v3_filtered_vocabulary_20260928/`.
+
+6. DECISÕES E PRÓXIMOS PASSOS
+------------------------------
+6.1 Limpeza do NMF restrito (revisada)
+Spec revisada em `docs/superpowers/specs/2026-09-22-nmf-restrito-limpeza.md`
+(poda -> flag). O plano `docs/superpowers/plans/2026-09-22-nmf-restrito-
+limpeza.md` (0/28 tarefas) ainda reflete a versão antiga e precisa ser
+reescrito. Ajustes decididos a partir de 5.3:
+- Filtro de boilerplate: manter (barato e correto), mas ele NÃO resolve
+  Speakers/software — o critério de aceite "componente de ruído reduzido" do
+  plano vai falhar e deve ser reescrito.
+- Poda de componente inteiro: substituir por FLAG (componente fica na
+  tabela, marcado, com motivo) — Ports e Gaming contêm evidência útil nos
+  componentes que seriam podados.
+- Antes da bigramização: limiar de θ e TF-IDF (4.6; PRD).
+- Bigramização para Price/value e Keyboard: mantida, se ainda necessária.
+- Todo componente rotulado "ruído" é amostrado manualmente (30-50
+  sentenças) antes de qualquer decisão.
+- Nenhuma limpeza deve descartar sentenças antes da etapa de sentimento.
+
+6.2 Ordem dos próximos passos
+1. PRD de melhorias do estado atual
+   (`docs/superpowers/specs/2026-09-23-prd-melhorias-estado-atual.md`):
+   P0 = stopwords no documento + rerun, métricas do modelo final,
+   rastreabilidade do run de sentença, critério de K, documentação.
+2. Congelar STM -> NMF restrito -> busca lexical como baseline de recuperação
+   para o MVP, não como detector validado. Guided NMF e BRETT ficam como
+   comparadores exploratórios; não fazer novas rodadas de ajuste até haver
+   uma hipótese nova e avaliação rotulada (resultados v3 em 5.5-5.6).
+3. Anotar humanamente as 205 frases cegas de `04-requirements` com a regra de
+   que elogios concretos também podem ser evidência de característica a
+   preservar. Comparar ranking por tópico, lexical e combinado com precisão
+   nos primeiros K itens; uma segunda pessoa revisa uma fração para medir
+   concordância. A leitura exploratória do assistente não é gabarito.
+4. Para estimar requisitos perdidos fora dos rankings e prevalência no corpus,
+   sortear uma amostra probabilística das 56.669 frases; a amostra cega atual
+   combina tops intencionais e frases fora dos tops, portanto não estima por si
+   só recall nem prevalência sem considerar o desenho amostral.
+5. Se a anotação mostrar lacunas de cobertura, testar busca semântica por
+   embeddings como mais um canal de candidatos. Se houver volume suficiente
+   de rótulos, comparar um baseline supervisionado simples (TF-IDF + regressão
+   logística) com encoder pré-treinado; separar detecção de evidência,
+   aspecto e direção (pedido/reclamação versus elogio de preservação), e
+   particionar treino/teste por vídeo para evitar vazamento entre frases do
+   mesmo vídeo.
+6. Deixar ABSA/sentimento como sinal auxiliar posterior; polaridade não define
+   se há requisito. Incluir explicitamente elogios de características
+   específicas para não reduzir requisitos a feedback negativo.
+7. Continuar a limpeza do NMF restrito conforme 6.1 e PRD (limiar de θ,
+   TF-IDF, flags); reanalisar H3 (4.4), critério de K (4.3/4.4) e a tabela de
+   revisão vinculada a tema/subtema quando a etapa de anotação estiver pronta.
+
+
+7. POSICIONAMENTO E RISCOS
+----------------------------
+- Tipo de requisito: produto/hardware (ruído, portas, bateria, tela), não
+  software — deixar explícito no enquadramento de RE; Sihag et al. 2023 [1] é
+  o precedente em RE para vídeo como fonte de requisitos.
+- Novidade frente a Sihag et al.: organização por tema/subtema, comparação de
+  granularidades e priorização por sentimento/intenção para revisão humana.
+- Precedente mais próximo com unidade = sentença: Timoshenko & Hauser (2019),
+  necessidades de cliente em UGC com filtro de sentenças informativas —
+  levantar e ler.
+- Viés do corpus: 83% laptop+phone; requisitos encontrados serão sobretudo de
+  laptop.
+- Rótulos de LLM: erraram repetidamente ("Cybertruck Design" = vídeos de
+  câmera; "Political Opinion" = layout de teclas; "Social Media Discussion" =
+  frases de opinião). Nunca usar nome gerado sem amostragem.
+- Modelo guiado (H6): risco de circularidade se as sementes vierem dos
+  próprios resultados; sementes de fonte externa, fixadas antes.
+
+
+8. REFERÊNCIAS DO MVP (12) — NORMA ABNT NBR 6023, COM PAPEL NO ARGUMENTO
+--------------------------------------------------------------------------
+Referências candidatas (2026-09-22), levantadas para a seção 4.5 — NÃO
+verificadas por leitura humana do PDF original; não entram no MVP até essa
+checagem (PDFs em `articles/`):
+- JIANG, LIU & FISHER (2026): STM vs. BERTopic em texto curto — reforço à 4.5.
+  (`2605.23093v1.pdf`)
+- PHELAN & CAMPBELL (2026): método BRETT (NMF com regressão de covariável) —
+  base do método-alvo de sentença.
+- KAFIABAD, SCHIFFAUEROVA & EBADI (2026): método COFFEE, alternativa ao BRETT.
+  (`2510.18803v1.pdf`)
+- CHENG et al. (2022): MSHTM, NMF amplo + BERTopic dentro de cada tema —
+  precedente de pipeline em camadas (4.5/4.6). (`2211.13496v1.pdf`)
+- ESHIMA, IMAI & SASAKI: keyATM, inclusive com covariáveis — candidato
+  principal de H6 no documento (4.9). (`2004.05964v1.pdf`)
+
+Referências candidatas (2026-09-23), modelos guiados (4.9) — PDFs baixados em
+`articles/`, leitura humana pendente:
+- JAGARLAMUDI, J.; DAUMÉ III, H.; UDUPA, R. Incorporating lexical priors into
+  topic models. In: CONFERENCE OF THE EUROPEAN CHAPTER OF THE ASSOCIATION FOR
+  COMPUTATIONAL LINGUISTICS, 13., 2012, Avignon. Proceedings [...]. [S. l.]:
+  ACL, 2012. p. 204-213. (`E12-1021.pdf`) — SeededLDA.
+- VENDROW, J.; HADDOCK, J.; REBROVA, E.; NEEDELL, D. On a guided nonnegative
+  matrix factorization. arXiv:2010.11365, 2020. (`2010.11365v2.pdf`) —
+  Guided NMF; confirmar a versão publicada (provavelmente ICASSP 2021).
+- LI, P.; TSENG, C.; ZHENG, Y.; CHEW, J. A.; HUANG, L.; JARMAN, B.; NEEDELL,
+  D. Guided semi-supervised non-negative matrix factorization. Algorithms,
+  v. 15, n. 5, 136, 2022. DOI: 10.3390/a15050136.
+  (`algorithms-15-00136.pdf`) — GSSNMF.
+- EBRAHIMI, S. F.; PELTONEN, J. Constrained non-negative matrix
+  factorization for guided topic modeling of minority topics. In:
+  CONFERENCE ON EMPIRICAL METHODS IN NATURAL LANGUAGE PROCESSING (EMNLP),
+  2025. (`2505.16493v1.pdf`) — sementes sem divisão prévia; YouTube.
+
+A levantar (citadas em 4.3/4.8/7, sem PDF): Maalej & Nabil (2015, RE —
+tipos de review); Panichella et al. (2015, ICSME — taxonomia de intenção);
+Timoshenko & Hauser (2019, Marketing Science — necessidades em UGC,
+sentença); Hoyle et al. (2021, NeurIPS — avaliação automática de tópicos);
+Doogan & Buntine (2021, NAACL — coerência vs. interpretabilidade); PyABSA
+(CIKM 2023) / SetFitABSA, se ABSA entrar; Laurer, van Atteveldt, Casas &
+Welbers (2022, Political Analysis — zero-shot NLI com BERT-NLI; mesma família
+do `deberta-v3-base-zeroshot-v2.0` avaliado na spec de comparação de
+classificadores, docs/superpowers/specs/2026-09-25-comparacao-classificadores-
+design.md); Radford et al. (2022, Whisper — já em uso em 01-preprocessing,
+falta formalizar como referência).
+Faltando na lista: FERREIRA, PESSOA, BÉHAR & LIMA NETO (2026, SBTI) — base
+de RQ3 (seção 3), sem entrada ABNT nem PDF em `articles/`.
+Sem PDF em `articles/`: [2] Guzman & Maalej, [3] Tushev et al., [4] Wang et
+al.
+
+[1] SIHAG, M.; LI, Z. S.; DASH, A.; ARONY, N. N.; DEVATHASAN, K.; ERNST, N.;
+ALBU, A. B.; DAMIAN, D. A data-driven approach for finding requirements relevant
+feedback from TikTok and YouTube. In: IEEE INTERNATIONAL REQUIREMENTS
+ENGINEERING CONFERENCE, 31., 2023. Proceedings [...]. [S. l.]: IEEE, 2023. DOI:
+10.1109/RE57278.2023.00020.
+Usado em: 1.1 (Introdução, contexto) e 2.1 (Related Work — vídeo como fonte de
+feedback/requisitos, ponto de partida da lacuna); 3.x (classificação de
+intenção como alternativa à polaridade, ver 4.8).
+
+[2] GUZMAN, E.; MAALEJ, W. How do users like this feature? A fine grained
+sentiment analysis of app reviews. In: IEEE INTERNATIONAL REQUIREMENTS
+ENGINEERING CONFERENCE, 22., 2014. Proceedings [...]. [S. l.]: IEEE, 2014. DOI:
+10.1109/RE.2014.6912257.
+Usado em: 2.3 (Related Work — âncora metodológica: aspecto + sentimento + LDA,
+origem da receita que este trabalho adapta) e 5.2 (Discussão — comparação com
+literatura prévia).
+
+[3] TUSHEV, M.; EBRAHIMI, F.; MAHMOUD, A. Domain-specific analysis of mobile app
+reviews using keyword-assisted topic models. In: INTERNATIONAL CONFERENCE ON
+SOFTWARE ENGINEERING, 44., 2022. Proceedings [...]. [S. l.]: ACM/IEEE, 2022. DOI:
+10.1145/3510003.3510201.
+Usado em: 2.3 (Related Work — limitação do LDA em reviews; precedente direto
+em RE de modelo guiado por palavras-chave, base de H6/4.9) e 5.2 (Discussão).
+
+[4] WANG, Z.; GAO, P.; CHU, X. Sentiment analysis from customer-generated online
+videos on product review using topic modeling and multi-attention BLSTM.
+Advanced Engineering Informatics, v. 52, 101588, 2022. DOI:
+10.1016/j.aei.2022.101588.
+Usado em: 2.4 (Related Work — topic modeling + sentimento em vídeo, sem foco em
+RE, sem granularidade de sentença) e 5.2 (Discussão).
+
+[5] ROBERTS, M. E.; STEWART, B. M.; TINGLEY, D.; LUCAS, C.; LEDER-LUIS, J.;
+GADARIAN, S. K.; ALBERTSON, B.; RAND, D. G. Structural topic models for
+open-ended survey responses. American Journal of Political Science, v. 58, n. 4,
+p. 1064-1082, 2014. DOI: 10.1111/ajps.12103.
+ROBERTS, M. E.; STEWART, B. M.; TINGLEY, D. stm: an R package for structural
+topic models. Journal of Statistical Software, v. 91, n. 2, p. 1-40, 2019. DOI:
+10.18637/jss.v091.i02.
+Usado em: 2.4 (Related Work — fundação do método) e 3.0/4.5 (Metodologia —
+justificativa de escolha do STM no documento), 3.3/3.4/4.3/4.4 (especificação
+do modelo).
+
+[6] CAI, M.; YANG, W.; DU, Y.; TAN, Y.; LU, X. Automatic requirements
+elicitation from user-generated content: a review of data, methods, and
+representations. Engineering Applications of Artificial Intelligence, v. 148,
+111110, 2025. DOI: 10.1016/j.engappai.2025.111110.
+Usado em: 2.5 (Related Work — panorama/survey, posiciona topic modeling entre os
+métodos de elicitação a partir de UGC).
+
+[7] OLUSANYA, M.; AROGUNDADE, O.; ABORISADE, D. O.; RAJI, M.; OJO, O.
+Data-driven initialization in topic modeling for enhanced software requirements
+specification interpretation. Cureus Journal of Computer Science, v. 3,
+es44389-025-00054-y, 2026. DOI: 10.7759/s44389-025-00054-y.
+Usado em: 2.2 (Related Work — topic modeling dentro de RE além de review mining;
+aplicação diferente — interpretação de SRS, não elicitação a partir de feedback)
+e 5.2 (Discussão).
+
+[8] EGGER, R.; YU, J. A topic modeling comparison between LDA, NMF, Top2Vec, and
+BERTopic to demystify Twitter posts. Frontiers in Sociology, v. 7, 886498, 2022.
+DOI: 10.3389/fsoc.2022.886498.
+Usado em: 3.0/4.5 (Metodologia — evidência empírica de terceiros sobre
+desempenho de métodos em texto curto; justifica STM no documento e NMF na
+sentença/subtemas) e 5.4 (Discussão — limitação esperada em sentença).
+
+[9] HANKAR, M.; KASRI, M.; BENI-HSSANE, A. A comprehensive overview of topic
+modeling: techniques, applications and challenges. Neurocomputing, v. 628,
+129638, 2025. DOI: 10.1016/j.neucom.2025.129638.
+Usado em: 2.5 (Related Work — panorama de técnicas de topic modeling) e 3.0/4.5
+(Metodologia — panorama da família de métodos ao justificar a escolha por
+granularidade).
+
+[10] CHEN, Y.; PENG, Z.; KIM, S.; CHOI, C. W. What we can do and cannot do with
+topic modeling: a systematic review. Communication Methods and Measures, 2023.
+DOI: 10.1080/19312458.2023.2167965.
+Usado em: 3.6/4.7 (Metodologia — rigor normativo de desenho de pesquisa,
+sustenta por que a tabela de revisão de RQ4 não usa nenhum critério de aceitação
+derivado do topic modeling, deixando a decisão inteiramente humana).
+
+[11] BHOWMIK, T.; NIU, N.; SAVOLAINEN, J.; MAHMOUD, A. Leveraging topic
+modeling and part-of-speech tagging to support combinational creativity in
+requirements engineering. Requirements Engineering, v. 20, p. 253-280, 2015.
+DOI: 10.1007/s00766-015-0226-2.
+Usado em: 2.2 (Related Work — topic modeling dentro de RE, além de review
+mining).
+
+[12] LIM, S.; HENRIKSSON, A.; ZDRAVKOVIC, J. Data-driven requirements
+elicitation: a systematic literature review. SN Computer Science, v. 2, n. 16,
+2021. DOI: 10.1007/s42979-020-00416-4.
+Usado em: 1.1/2.1 (Introdução/Related Work — survey amplo de elicitação de
+requisitos a partir de fontes de dados dinâmicas/não-tradicionais, motiva o
+enquadramento de vídeo como fonte ainda pouco explorada) e 2.5 (Related Work —
+panorama e surveys, ao lado de Cai et al. 2025).
+
+
+9. PONTOS EM ABERTO
+---------------------
+- Protocolo de anotação humana em RQ4: um anotador ou dois com kappa.
+- Modelo de sentimento/intenção, com ou sem ABSA, e protocolo de validação
+  (4.8).
+- Meta numérica do critério de sucesso de H5 — fixar antes do piloto (4.8).
+- Critério de K do STM: declarar C_v ou demonstrar robustez (4.3/4.4).
+- Rerun do STM de documento com stopwords (4.3) e conferência de H1.
+- Canonizar o run de sentença (190124 incompleto × 225112 idêntico) (4.4).
+- Reanálise quantitativa de H3 (4.4).
+- Limiar de θ e TF-IDF no NMF restrito (4.6); reescrever plano de limpeza.
+- Religar a tabela de `04-requirements` a tema/subtema de sentença.
+- H6: escolher método guiado por nível (keyATM no documento; Guided NMF ou
+  keyATM na sentença) e fonte das sementes (4.9).
+- NMF+BRETT na sentença (4.5) e como apresentar a troca de método em RQ3.
+- Baseline LDA via `gensim` para reforçar a 4.5 (ferramenta identificada em
+  `articles/gemsim e STM.txt`; não decidido se entra).
+- Referências candidatas da seção 8: leitura humana do PDF antes de entrarem;
+  Ferreira et al. 2026 sem entrada; `docs/related-works.md` desatualizado
+  (ainda descreve sentimento como covariável e a numeração antiga das RQs).
+- Sentimento como covariável de prevalência: trabalho futuro, fora deste
+  artigo (o uso pós-hoc de 4.8 é outra coisa e está no escopo).
+
+
+10. REGISTRO DE CORREÇÕES
+---------------------------
+2026-09-21 — Referência [12]: "s42979-020-00416-4.pdf" estava identificado como
+  "Chen et al. (2021), Understanding MOOC Reviews: Text Mining using STM".
+  Correto: Lim, Henriksson & Zdravkovic (2021), survey de elicitação
+  data-driven. Muda de papel no argumento.
+
+2026-09-22 — Verificação dos resultados contra os outputs em disco:
+- H3 "separação limpa" / "gap claro 0,062 -> 0,093": REFUTADO. O |estimate|
+  máximo mede contra a categoria de referência `camera` (14 vídeos) e o
+  máximo quase sempre vem de `console` (9 vídeos). Com medida independente da
+  referência é gradiente. H3 rebaixada para "confirmada qualitativamente".
+- "7-8 aspectos genuínos × 4 de categoria": ALTERADO. Pelo contraste
+  laptop × phone só 3 são claramente de categoria; Apple software e Display
+  foram reclassificados como casos a discutir (5.2).
+- "K selecionado por fronteira de Pareto (coerência × exclusividade)":
+  INCORRETO. K=12 e K=15 foram escolhidos por pico de C_v; o Pareto declarado
+  daria K=8 (doc) e K=10 (sentença).
+- "Coerência semântica 0,594 / 0,544": RÓTULO ERRADO — são C_v. Coerência
+  semântica do `stm` (UMass): -47,1 / -179,1.
+- "Exclusividade quase o dobro do documento": REMOVIDO — compara
+  vocabulários/unidades diferentes.
+- p-valores de sentença (ex.: p < 1e-11 como força de evidência na sentença):
+  não citáveis — pseudo-replicação (sentenças agrupadas em vídeos).
+- "9 categorias": CORRIGIDO para 11.
+- "Boilerplate contamina Speakers/software (33% do tópico) e provavelmente o
+  próprio STM K=15": REFUTADO. A regex do plano pega 7,9% do componente; o
+  resto é frase de opinião. No corpus do STM, boilerplate literal = 0,11%.
+- "Componente 'Political Opinion' em Ports é ruído puro": REFUTADO — contém
+  queixas reais de layout de teclado.
+- "Gaming: só 1 de 5 componentes é sobre o aspecto" (spec de limpeza):
+  ALTERADO — componentes fora de "frame rate" são aspecto técnico real.
+- "Display/brightness pronto": ALTERADO para "usável" (NPMI 0,047, entre os
+  mais baixos).
+- "STM de sentença mantido; só o STM tem teste de covariável": ALTERADO —
+  NMF+BRETT também testa covariável e é o método-alvo para sentença (4.5).
+- "BRETT como piloto de triangulação": ALTERADO para troca de método no nível
+  de sentença.
+- Arquivo `docs/spec-rq4-limpeza-sentimento-triangulacao.txt` citado como
+  fonte: NÃO EXISTE em disco. Referências a ele removidas; spec real de
+  limpeza: `docs/superpowers/specs/2026-09-22-nmf-restrito-limpeza.md`.
+- Mecanismo de rotulagem via LLM (`_advisor.py`) citado como rotulador de
+  tópico: impreciso — `_advisor.py` é o assistente de calibração; nomeação de
+  tópicos é `name_all_topics` com a config `llm` em `params.yaml`.
+
+2026-09-23 — Segunda verificação (outputs, código, testes):
+- CONFIRMADOS: 56.669 sentenças nos 8 temas; tamanhos dos componentes
+  (1.991 / 1.423 / 1.986); Pareto daria K=8 (doc) e K=10 (sentença); C_v de
+  grid 0,594 / 0,544. As 5 suítes de teste passam (299 passed, 4 skipped).
+- STM de documento treinado SEM `stopwords_emojis` (o notebook não passa
+  `extra_stopwords`): "yeah", "maybe", "basically" no tópico 10. NOVO — rerun
+  necessário (4.3, 5.1).
+- "Diversidade de tópicos 0,951" (5.1): RÓTULO ERRADO — é
+  `diversity_entropy`. Topic diversity (Dieng): 0,75 (final) / 0,79 (grid).
+- "C_v 0,594" (5.1): é do grid. Modelo final (σ=0, L1): 0,556. "C_v 0,544"
+  (5.2): é do grid em amostra de 25 mil; modelo final sem C_v calculado.
+- Escolha de σ×γ por C_v: diferenças ≤ 0,003 — ruído; declarado como tal.
+- Run pinado de sentença `youtube_sent_20260921_190124` teve os quatro exports
+  recuperados do run `..._225112` após conferência SHA-256 de input, θ, β e
+  JSON final. O novo teste de contrato verifica o run pinado (4.4).
+- Atribuição de sentença difusa: 60,2% com max(θ) < 0,3. NOVO (5.3); possível
+  causa de parte do ruído dos subtemas (4.6).
+- NMF restrito sobre contagem bruta, sem TF-IDF. NOVO (4.6).
+- Boilerplate em "Social Media Discussion": o 7,9% depende da regex; faixa
+  7,9-17,6%. Conclusão (minoria) mantida (5.3).
+- Taxa lexical de queixa: 4,3% (léxico original) / 4,8% (léxico amplo); por
+  tema, 2,3-9,9%. Tratar como faixa (5.4).
+- [3] Tushev et al.: papel CORRIGIDO — usam modelo guiado por palavras-chave;
+  precedente de H6, não só "motiva STM".
+- Ferreira et al. 2026 (SBTI) sustenta RQ3 mas faltava na lista de
+  referências. Registrado (seção 8).
+- `CLAUDE.md` descreve a seleção de K do STM como Pareto; o código usa
+  max(C_v). Registrado (4.3).
+- Adicionados: seção 0 (resumo), H6 e 4.9 (modelos guiados), desenho de
+  teste em 4.8, 4 referências candidatas de modelos guiados (seção 8).

@@ -126,7 +126,8 @@ guided:
     livres: 6
     livres_sens: [3, 10]
     lambda_grid: [0.1, 0.5, 1, 2, 5]  # protocolo original, run 20260927_180119
-    protocol: "2026-09-27-v2-normalized-lambda"
+    protocol: "2026-09-28-v3-three-sentence-window"
+    context_radius: 1
     preserve_seed_terms: [lens, oled, overpriced]
     alpha_grid: [0.01, 0.03, 0.1, 0.3, 1, 3, 10]
     regra_lambda_top_n: 10
@@ -144,6 +145,16 @@ brett:
     topics: 20
     pilot_size: 1000
     pilot_seeds: [42, 7, 2026]
+  context_v3:
+    protocol: "2026-09-28-v3-filtered-vocabulary"
+    radius: 1
+    topics: 35
+    pilot_size: 1000
+    pilot_seeds: [42, 7, 2026]
+    no_below: 20
+    no_above: 0.2
+    sample_no_below: 3
+    sample_no_above: 0.5
   rodada_a:
     k_range: [10, 15, 20, 25, 30, 35, 40]
   rodada_b:
