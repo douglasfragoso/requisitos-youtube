@@ -36,8 +36,6 @@ from _helpers import (  # noqa: E402
     compute_coherence_npmi,
     compute_ctfidf_scores,
     compute_embedding_coherence,
-    compute_metrics_table,
-    compute_nmf_reconstruction_error,
     diagnose_cv_window,
     compute_exclusivity_ctfidf,
     compute_frex_score,
@@ -52,8 +50,6 @@ from _helpers import (  # noqa: E402
     resolve_latest_dir,
     sweep_bertopic_grid,
     sweep_outlier_strategies,
-    sweep_outlier_threshold,
-    train_lda,
     train_nmf,
 )
 
@@ -217,49 +213,6 @@ def test_janela_corpus_vazio_nao_divide_por_zero():
 # compute_metrics_table — o helper unico (notebooks + script pos-hoc)
 # --------------------------------------------------------------------------
 
-def test_tabela_reproduz_as_funcoes_individuais(corpus):
-    """O contrato central: a tabela nao pode ser uma segunda implementacao."""
-    textos, d = corpus
-    topicos = {0: ["gato", "cachorro", "casa"], 1: ["rua", "carro", "casa"]}
-    t = compute_metrics_table(topicos, textos, d, top_n=3, verbose=False)
-    tk = {tid: kws[:3] for tid, kws in topicos.items()}
-    assert t["npmi"] == pytest.approx(compute_coherence_npmi(tk, textos, d))
-    assert t["cv_bruto"] == pytest.approx(compute_coherence_cv(tk, textos, d))
-    assert t["topic_diversity"] == pytest.approx(
-        compute_topic_diversity(topicos, top_k=3))
-
-
-def test_tabela_suprime_cv_quando_a_janela_degenera(corpus):
-    """Nos tweets o C_v nao pode sair publicavel por descuido."""
-    textos, d = corpus  # documentos de 3 tokens -> 100% degenerado
-    t = compute_metrics_table({0: ["gato", "cachorro", "casa"]}, textos, d,
-                              top_n=3, verbose=False)
-    assert np.isnan(t["cv"])
-    assert not np.isnan(t["cv_bruto"])
-    assert t["cv_window_degenerado"] is True
-
-
-def test_tabela_mantem_cv_quando_a_janela_e_valida():
-    longos = [["gato", "cachorro"] * 60 + ["casa"] * 60 for _ in range(8)]
-    d = Dictionary(longos)
-    t = compute_metrics_table({0: ["gato", "cachorro", "casa"]}, longos, d,
-                              top_n=3, verbose=False)
-    assert not np.isnan(t["cv"])
-    assert t["cv"] == pytest.approx(t["cv_bruto"])
-
-
-def test_tabela_so_traz_exclusividade_e_frex_com_os_insumos(corpus):
-    textos, d = corpus
-    topicos = {0: ["gato", "cachorro"]}
-    sem = compute_metrics_table(topicos, textos, d, top_n=2, verbose=False)
-    assert "exclusivity" not in sem and "frex" not in sem
-
-    scores = {0: {"gato": 0.9, "cachorro": 0.1}}
-    com = compute_metrics_table(topicos, textos, d, top_n=2,
-                                topic_word_scores=scores, verbose=False)
-    assert "exclusivity" in com and "frex" not in com
-
-
 def test_topn_do_gensim_acompanha_a_lista_e_nao_trava_em_20():
     """P0c/C10: CoherenceModel tem topn=20 por default e NAO segue o tamanho da lista.
 
@@ -334,15 +287,6 @@ def test_faixa_de_k_declarada_por_corpus():
     for corpus, (lo, hi) in FAIXA_K.items():
         assert lo < hi, f"{corpus}: faixa invertida"
         assert lo >= 2, f"{corpus}: limite inferior sem sentido"
-
-
-def test_tabela_reporta_o_diagnostico_de_oov(corpus):
-    textos, d = corpus
-    t = compute_metrics_table(
-        {0: ["gato", "cachorro", "OOV"], 1: ["naoexiste", "tambemnao"]},
-        textos, d, top_n=3, verbose=False)
-    assert t["n_topicos_descartados"] == 1
-    assert t["oov_taxa"] == pytest.approx(3 / 5)
 
 
 # --------------------------------------------------------------------------
@@ -496,7 +440,7 @@ def test_jaccard():
 # que sustenta qualquer comparacao entre runs da mesma maquina.
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("funcao", [grid_search_k, grid_search_alpha_eta, train_lda])
+@pytest.mark.parametrize("funcao", [grid_search_k, grid_search_alpha_eta])
 def test_lda_expoe_workers_como_parametro(funcao):
     """`workers` precisa ser controlavel pelo chamador — e o knob da reprodutibilidade."""
     assert "workers" in inspect.signature(funcao).parameters
@@ -634,27 +578,6 @@ def test_grid_nmf_sem_return_npmi_nao_tem_custo_de_npmi_no_contrato(corpus):
 # compute_nmf_reconstruction_error — C4, analogo da perplexidade do LDA
 # --------------------------------------------------------------------------
 
-def test_reconstrucao_nmf_e_no_intervalo_e_finita(corpus):
-    textos, dic = corpus
-    bow = [dic.doc2bow(t) for t in textos]
-    model = train_nmf(bow, dic, k=2, seed=42, passes=5)
-    err = compute_nmf_reconstruction_error(model, bow)
-    assert np.isfinite(err)
-    assert err >= 0.0
-
-
-def test_reconstrucao_nmf_pior_com_k_menor_em_corpus_com_estrutura(corpus):
-    """K=1 forca todo documento numa mistura so — deve reconstruir pior que K=3
-    num corpus com blocos tematicos distintos (o fixture `corpus` tem 3)."""
-    textos, dic = corpus
-    bow = [dic.doc2bow(t) for t in textos]
-    modelo_k1 = train_nmf(bow, dic, k=1, seed=42, passes=10)
-    modelo_k3 = train_nmf(bow, dic, k=3, seed=42, passes=10)
-    err_k1 = compute_nmf_reconstruction_error(modelo_k1, bow)
-    err_k3 = compute_nmf_reconstruction_error(modelo_k3, bow)
-    assert err_k3 <= err_k1 + 1e-6
-
-
 class _NmfPerfeito:
     """Stub minimo: H e W tais que W @ H reproduz exatamente as proporcoes de V
     normalizado por linha — erro de reconstrucao deve ser ~0."""
@@ -669,16 +592,6 @@ class _NmfPerfeito:
     def get_document_topics(self, bow, minimum_probability=0.0):
         idx = self._bow_to_index[tuple(bow)]
         return list(enumerate(self._doc_topics[idx]))
-
-
-def test_reconstrucao_nmf_stub_com_ajuste_perfeito_e_quase_zero():
-    # V (2 docs x 3 termos), cada doc e um multiplo de uma unica linha de H
-    H = np.array([[0.5, 0.5, 0.0], [0.0, 0.2, 0.8]])
-    corpus_bow = [[(0, 1), (1, 1)], [(1, 1), (2, 4)]]  # doc0 ~ H[0]; doc1 ~ H[1]
-    modelo = _NmfPerfeito(H, doc_topics=[[1.0, 0.0], [0.0, 1.0]])
-    modelo._bow_to_index = {tuple(b): i for i, b in enumerate(corpus_bow)}
-    err = compute_nmf_reconstruction_error(modelo, corpus_bow)
-    assert err == pytest.approx(0.0, abs=1e-9)
 
 
 def test_nmf_get_topics_normaliza_linhas():
@@ -1501,19 +1414,6 @@ def test_sweep_outlier_strategies_grava_checkpoint_por_linha(monkeypatch, tmp_pa
     df = pd.read_csv(p)
     assert len(df) == 4
     assert set(df["strategy"]) == {"off", "c-tf-idf"}
-
-
-def test_sweep_outlier_threshold_grava_checkpoint_por_linha(monkeypatch, tmp_path):
-    _fake_bertopic_metrics_patch(monkeypatch)
-    p = tmp_path / "sweep_threshold_checkpoint.csv"
-    sweep_outlier_threshold(
-        lambda seed: _FakeBertopicModel(),
-        docs=["d1", "d2"], embeddings=None, tokenized=[["a"]], dictionary=None,
-        seeds=[1], grids={"c-tf-idf": [0.1, 0.2]}, checkpoint_path=p,
-    )
-    df = pd.read_csv(p)
-    assert len(df) == 2
-    assert set(df["threshold"]) == {0.1, 0.2}
 
 
 def test_coerencia_respeita_top_k_declarado():

@@ -29,7 +29,7 @@ def test_topic_modeling_params_tem_youtube_doc_e_youtube_sent():
     assert p["default_corpus"] == "youtube_doc"
     for k in ("bertopic", "lda", "nmf"):
         assert k not in p, f"bloco {k} deveria ter saido"
-    assert "stm" in p and "evaluation" in p and "advisor" in p
+    assert "stm" in p and "evaluation" in p
 
 
 def test_youtube_sent_tem_chaves_do_template_stm():

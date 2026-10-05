@@ -99,29 +99,6 @@ def get_corpus_config(params: dict, corpus_id: str = None) -> tuple[str, dict]:
     return (corpus_id, corpora[corpus_id])
 
 
-def apply_bertopic_overrides(bert_cfg: dict, corpus_cfg: dict) -> dict:
-    """Overlay ``corpus_cfg['bertopic_overrides']`` onto the shared ``bertopic:``
-    block, one level deep (dict-valued keys like ``umap``/``hdbscan``/
-    ``reduce_outliers`` are merged key-by-key; scalar keys are replaced).
-
-    The ``bertopic:`` section in params.yaml is shared across corpora — e.g.
-    umap/hdbscan/reduce_outliers were calibrated for folha via its own sweep.
-    A per-corpus ``bertopic_overrides`` lets another corpus (e.g. tweets, via
-    its own ``sweep_bertopic_grid`` run) recalibrate just the knobs its sweep
-    touched, without mutating the shared dict or affecting other corpora.
-    Returns a NEW dict; ``bert_cfg`` and ``corpus_cfg`` are left untouched.
-    """
-    import copy
-    merged = copy.deepcopy(bert_cfg)
-    overrides = corpus_cfg.get("bertopic_overrides") or {}
-    for key, val in overrides.items():
-        if isinstance(val, dict) and isinstance(merged.get(key), dict):
-            merged[key] = {**merged[key], **val}
-        else:
-            merged[key] = val
-    return merged
-
-
 def get_column_names(params_or_cfg: dict, corpus_id: str = None) -> dict:
     """Extract column names. Accepts full ``params`` dict or a ``corpus_cfg``.
 
@@ -539,49 +516,6 @@ def get_ollama_embeddings(
     return np.array(results, dtype=np.float32)
 
 
-def get_or_compute_embeddings(
-    texts: list[str],
-    model_name: str,
-    cache_path: str,
-    backend: str = "sentence_transformers",
-    dimension: int = None,
-    batch_size: int = 32,
-    show_progress: bool = True,
-    timeout: float = 120.0,
-    max_concurrent: int = 5,
-) -> np.ndarray:
-    """Load embeddings from cache or compute and save them.
-
-    Supports two backends:
-    - "sentence_transformers": uses SentenceTransformer (default)
-    - "ollama": uses Ollama API via async HTTP
-
-    If cache exists and shape matches, returns cached embeddings.
-    """
-    if os.path.exists(cache_path):
-        cached = np.load(cache_path)
-        if cached.shape[0] == len(texts):
-            return cached
-
-    if backend == "ollama":
-        embeddings = get_ollama_embeddings(
-            texts, model_name, dimension=dimension, timeout=timeout, max_concurrent=max_concurrent,
-        )
-    else:
-        model = SentenceTransformer(model_name)
-        embeddings = model.encode(
-            texts,
-            batch_size=batch_size,
-            show_progress_bar=show_progress,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-        )
-
-    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-    np.save(cache_path, embeddings)
-    return embeddings
-
-
 # ===========================================================================
 # lemmatize.py
 # ===========================================================================
@@ -672,38 +606,6 @@ def lemmatize_corpus(
 # naming.py
 # ===========================================================================
 """Topic naming via Ollama LLM (PT-BR, with retry/temperature escalation)."""
-
-
-def warmup_ollama(
-    model: str = "qwen3:4b",
-    base_url: str = "http://localhost:11434",
-    timeout: float = 120.0,
-) -> bool:
-    """Warm-up call para carregar o modelo na memoria antes do batch real.
-
-    Cold start de modelos grandes em CPU pode demorar ~30-60s. Sem warm-up,
-    a primeira chamada de naming sofre esse custo + risco maior de timeout.
-
-    Returns
-    -------
-    bool
-        True se o modelo respondeu, False caso contrario.
-    """
-    try:
-        client = ollama.Client(host=base_url)
-        t0 = time.time()
-        response = client.chat(
-            model=model,
-            messages=[{"role": "user", "content": "Responda apenas: OK"}],
-            options={"temperature": 0.0, "num_predict": 8, "think": False},
-        )
-        dt = time.time() - t0
-        content = response.get("message", {}).get("content", "")
-        print(f"  [warmup] Modelo {model} respondeu em {dt:.1f}s: {content[:50]!r}")
-        return True
-    except Exception as e:
-        print(f"  [warmup] Falhou: {type(e).__name__}: {e}")
-        return False
 
 
 # ---------------------------------------------------------------------------
@@ -926,19 +828,6 @@ def _call_ollama_once(
         },
     )
     return _clean_label(response["message"]["content"])
-
-
-def _fallback_label(keywords: list[str], n: int = 3, lang: str = "pt") -> str:
-    """Emergency label: top-N keywords joined.
-
-    ``lang`` apenas afeta a mensagem usada quando ``keywords`` esta vazio
-    (default ``"pt"`` preserva comportamento historico).
-    """
-    kws = [k for k in keywords[:n] if k]
-    if not kws:
-        return "Topic without label" if lang == "en" else "Tópico sem rótulo"
-    label = ", ".join(kws)
-    return label[0].upper() + label[1:]
 
 
 def _smart_fallback(keywords: list[str], lang: str = "pt") -> str:
@@ -1318,32 +1207,6 @@ def compute_stability(
     return float(np.mean(pair_scores)), float(np.std(pair_scores))
 
 
-def generate_likert_sheet(
-    all_results: list[dict],
-    output_path: str,
-    mapping_path: str,
-    seed: int = 42,
-) -> None:
-    """Generate blinded Likert evaluation CSV and secret mapping."""
-    df = pd.DataFrame(all_results)
-    df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
-    df.insert(0, "eval_id", range(1, len(df) + 1))
-
-    mapping = df[["eval_id", "model"]].copy()
-    mapping.to_csv(mapping_path, index=False)
-
-    likert = df.drop(columns=["model", "topic_id"])
-    likert["representatividade"] = ""
-    likert["coerencia"] = ""
-    likert["utilidade"] = ""
-    likert.to_csv(output_path, index=False)
-
-
-def compute_kappa(ratings_a: list[int], ratings_b: list[int]) -> float:
-    """Cohen's Kappa between two raters."""
-    return float(cohen_kappa_score(ratings_a, ratings_b))
-
-
 # ---------------------------------------------------------------------------
 # Protocolo 2026-08-16 — regime de janela e tabela unica de metricas
 # ---------------------------------------------------------------------------
@@ -1386,105 +1249,6 @@ def diagnose_cv_window(tokenized: list[list[str]], window: int = CV_WINDOW) -> d
         "cv_degenerado": bool(frac > CV_DEGENERACAO_MAX),
         "janela": window,
     }
-
-
-def compute_metrics_table(
-    topics_keywords: dict[int, list[str]],
-    tokenized: list[list[str]],
-    dictionary,
-    *,
-    top_n: int = 20,
-    topic_word_scores: dict[int, dict[str, float]] | None = None,
-    topic_word_matrix: np.ndarray | None = None,
-    vocab_index: dict[str, int] | None = None,
-    topic_index: dict[int, int] | None = None,
-    w_freq: float = 0.5,
-    verbose: bool = True,
-) -> dict:
-    """Tabela unica de metricas do protocolo, numa base de top-N declarada.
-
-    PARA QUE EXISTE. As celulas dos notebooks e o script de recomputo pos-hoc
-    (``_metricas_pos_hoc.py``) chamam ESTA funcao. Sem isso haveria duas
-    implementacoes das mesmas metricas — a dos notebooks e a do script — e o
-    numero retroalimentado nos runs vigentes seria apenas *parecido* com o que
-    o notebook produziria, em vez de identico. E o que torna defensavel
-    preencher o NPMI dos runs de 08/2026 sem re-executa-los.
-
-    O QUE DEVOLVE, e o estatuto de cada campo (protocolo 2026-08-16):
-
-      npmi          DECIDE — coerencia do protocolo (Bouma 2009; e a medida da
-                    avaliacao do proprio BERTopic). Faixa [-1, 1].
-      topic_diversity  EIXO — metade do par canonico (Dieng et al. 2020).
-                    Entra na fronteira de Pareto, nunca como porta de
-                    admissibilidade (ICC baixo).
-      cv            NUNCA DECIDE — reportado so onde a janela nao degenera.
-                    Sai como NaN quando ``cv_degenerado``, para que o numero
-                    nao possa ser publicado por descuido sob o rotulo "C_v".
-      exclusivity, frex   REPORTE SECUNDARIO — fora de qualquer criterio.
-                    Nativos sobre beta no LDA; analogos c-TF-IDF no BERTopic.
-      oov_*         diagnostico do filtro de OOV, para declarar com numero o
-                    vies para cima (o descarte remove o pior topico).
-      cv_window_*   diagnostico de regime (ver ``diagnose_cv_window``).
-
-    As metricas de exclusividade e FREX so entram se os respectivos insumos
-    forem passados — o BERTopic fornece a matriz c-TF-IDF, o LDA a matriz phi.
-    """
-    tk = {tid: kws[:top_n] for tid, kws in topics_keywords.items()}
-
-    npmi, diag_npmi = compute_coherence_npmi(tk, tokenized, dictionary, return_counts=True)
-    cv, diag_cv = compute_coherence_cv(tk, tokenized, dictionary, return_counts=True)
-    janela = diagnose_cv_window(tokenized)
-
-    if janela["cv_degenerado"]:
-        cv_reportavel = float("nan")
-        if verbose:
-            print(
-                f"  [C_v] NAO REPORTADO: {janela['frac_abaixo_janela']*100:.1f}% dos documentos "
-                f"tem menos de {janela['janela']} tokens (mediana {janela['mediana_tokens']:.0f}). "
-                f"A janela deslizante degenera e o valor deixa de ser o C_v de Roder et al. "
-                f"Valor bruto = {cv:.4f}; use o NPMI."
-            )
-    else:
-        cv_reportavel = float(cv)
-
-    out = {
-        "top_n": int(top_n),
-        "npmi": float(npmi),
-        "cv": cv_reportavel,
-        "cv_bruto": float(cv),
-        "topic_diversity": float(compute_topic_diversity(topics_keywords, top_k=top_n)),
-        "n_topicos": diag_npmi["n_topicos"],
-        "n_topicos_avaliados": diag_npmi["n_topicos_avaliados"],
-        "n_topicos_descartados": diag_npmi["n_topicos_descartados"],
-        "oov_keywords": diag_npmi["n_keywords_oov"],
-        "oov_taxa": diag_npmi["taxa_oov"],
-        "cv_window_frac_abaixo": janela["frac_abaixo_janela"],
-        "cv_window_mediana_tokens": janela["mediana_tokens"],
-        "cv_window_degenerado": janela["cv_degenerado"],
-        "npmi_window_frac_abaixo": janela["frac_abaixo_npmi"],
-    }
-    # diag_cv so difere de diag_npmi se o gensim mudar o filtro; guardamos para
-    # detectar divergencia em vez de assumi-la impossivel.
-    if diag_cv["n_topicos_avaliados"] != diag_npmi["n_topicos_avaliados"]:
-        out["aviso_filtro_divergente"] = True
-
-    if topic_word_scores is not None:
-        excl, _ = compute_exclusivity_ctfidf(topics_keywords, topic_word_scores, top_n=top_n)
-        out["exclusivity"] = float(excl)
-    if topic_word_matrix is not None and vocab_index is not None and topic_index is not None:
-        frex, _ = compute_frex_score(
-            topics_keywords, topic_word_matrix, vocab_index, topic_index,
-            top_n=top_n, w_freq=w_freq,
-        )
-        out["frex"] = float(frex)
-
-    if verbose and out["n_topicos_descartados"] > 0:
-        print(
-            f"  [OOV] {out['n_topicos_descartados']} de {out['n_topicos']} topicos descartados "
-            f"e {out['oov_taxa']*100:.1f}% das keywords fora do dicionario — a coerencia esta "
-            f"enviesada para CIMA. Declarar."
-        )
-    return out
 
 
 def export_results(
@@ -1649,55 +1413,6 @@ def compute_ctfidf_scores(docs_by_topic: dict[int, list[str]]) -> dict[int, dict
     return scores
 
 
-def export_exclusividade_ranking(
-    topics_keywords: dict[int, list[str]],
-    dominant_per_doc,
-    names: dict[int, str] | None = None,
-    out_path=None,
-    *,
-    topic_word_scores: dict[int, dict[str, float]] | None = None,
-    documents: list[str] | None = None,
-    top_n: int = 10,
-):
-    """Ranking por tópico (exclusividade c-TF-IDF + n_docs) → `*_exclusividade_ranking.csv`.
-
-    Espelha o CSV que o BERTopic já gera, mas serve LDA/NMF/STM. Se
-    `topic_word_scores` não for dado, calcula c-TF-IDF de classe a partir de
-    `documents` + `dominant_per_doc` (via compute_ctfidf_scores). `n_docs` = nº
-    de docs cujo tópico dominante é o tópico. Ordena por exclusividade desc.
-
-    Colunas: topic_id, topic_name, exclusividade, n_docs — idênticas ao
-    bertopic_exclusividade_ranking.csv (coletado pelo advisor via glob).
-    """
-    from collections import Counter, defaultdict
-
-    dominant = [int(t) for t in dominant_per_doc]
-    if topic_word_scores is None:
-        if documents is None:
-            raise ValueError("passe topic_word_scores OU documents+dominant_per_doc")
-        docs_by_topic: dict[int, list[str]] = defaultdict(list)
-        for doc, t in zip(documents, dominant):
-            docs_by_topic[t].append(doc)
-        topic_word_scores = compute_ctfidf_scores(docs_by_topic)
-
-    _, excl_per_topic = compute_exclusivity_ctfidf(topics_keywords, topic_word_scores, top_n=top_n)
-    counts = Counter(dominant)
-    names = names or {}
-    rows = [
-        {
-            "topic_id": tid,
-            "topic_name": names.get(tid, ", ".join(topics_keywords.get(tid, [])[:3])),
-            "exclusividade": excl_per_topic.get(tid, 0.0),
-            "n_docs": int(counts.get(tid, 0)),
-        }
-        for tid in topics_keywords
-    ]
-    df = pd.DataFrame(rows).sort_values("exclusividade", ascending=False).reset_index(drop=True)
-    if out_path is not None:
-        df.to_csv(out_path, index=False)
-    return df
-
-
 def compute_topic_diversity(
     topics_keywords: dict[int, list[str]],
     top_k: int = 10,
@@ -1769,53 +1484,6 @@ def compute_embedding_coherence(
         pairs = n * (n - 1) / 2
         scores.append(total / pairs if pairs > 0 else 0.0)
     return float(np.mean(scores)) if scores else 0.0
-
-
-def compute_frex(
-    topics_keywords: dict[int, list[str]],
-    topic_word_scores: dict[int, dict[str, float]],
-    weight: float = 0.5,
-) -> dict[int, list[str]]:
-    """FREX-ranked keywords using a *linear* combination (legacy).
-
-    Kept for backwards compatibility with earlier evaluation scripts. New code
-    should prefer ``compute_frex_score`` which implements the harmonic-mean
-    formulation of Airoldi & Bischof (2016) used in STM and reported in the
-    BERTopic literature.
-
-    topic_word_scores: REQUIRED. Dict[topic_id, Dict[word, score]].
-    weight: 0=pure exclusivity, 1=pure frequency.
-    """
-    word_topic_count = {}
-    for kws in topics_keywords.values():
-        for w in kws:
-            word_topic_count[w] = word_topic_count.get(w, 0) + 1
-
-    frex_results = {}
-    for tid, kws in topics_keywords.items():
-        scores = topic_word_scores.get(tid, {})
-        scored_raw = []
-        for w in kws:
-            freq_score = scores.get(w, 0.0)
-            excl_score = 1.0 / word_topic_count[w] if word_topic_count[w] > 0 else 0.0
-            scored_raw.append((w, freq_score, excl_score))
-
-        if scored_raw:
-            all_freq = [fs for _, fs, _ in scored_raw]
-            max_freq = max(all_freq)
-            min_freq = min(all_freq)
-            range_freq = max_freq - min_freq if max_freq != min_freq else 1.0
-            scored = [
-                (w, weight * ((fs - min_freq) / range_freq) + (1 - weight) * es)
-                for w, fs, es in scored_raw
-            ]
-        else:
-            scored = []
-
-        scored.sort(key=lambda x: x[1], reverse=True)
-        frex_results[tid] = [w for w, _ in scored]
-
-    return frex_results
 
 
 def compute_frex_score(
@@ -1910,69 +1578,6 @@ def _build_cooccurrence_matrix(texts: list[list[str]], vocab: set[str]) -> tuple
                 cooccur[(wa, wb)] += 1
 
     return dict(cooccur), dict(doc_freq)
-
-
-def compute_topic_concordance_npmi(
-    topics_keywords_a: dict[int, list[str]],
-    topics_keywords_b: dict[int, list[str]],
-    texts: list[list[str]],
-) -> float:
-    """Concordancia entre DOIS modelos: para cada topico de A, o melhor par em B.
-
-    NAO e coerencia de topico — para isso use ``compute_coherence_npmi``. Esta
-    funcao usa o NPMI como similaridade entre listas de keywords de modelos
-    diferentes, e o que ela devolve e uma medida de acordo entre modelos, na
-    mesma familia de ARI/NMI entre atribuicoes.
-
-    Renomeada em 2026-08-16: chamava-se ``compute_npmi``, o que a confundia com
-    a coerencia NPMI. Nao tinha chamador. E a candidata natural para dar numero
-    a triangulacao entre as 4 familias, hoje so qualitativa.
-
-    Pre-computa a matriz de coocorrencia por eficiencia.
-    """
-    from math import log
-
-    vocab = set()
-    for kws in list(topics_keywords_a.values()) + list(topics_keywords_b.values()):
-        vocab.update(kws)
-
-    n_docs = len(texts)
-    if n_docs == 0:
-        return 0.0
-
-    cooccur, doc_freq = _build_cooccurrence_matrix(texts, vocab)
-
-    def pairwise_npmi(words_a, words_b):
-        scores = []
-        for wa in words_a:
-            for wb in words_b:
-                if wa == wb:
-                    continue
-                p_a = doc_freq.get(wa, 0) / n_docs
-                p_b = doc_freq.get(wb, 0) / n_docs
-                key = tuple(sorted([wa, wb]))
-                co = cooccur.get(key, 0) / n_docs
-                if co == 0 or p_a == 0 or p_b == 0:
-                    continue
-                pmi = log(co / (p_a * p_b))
-                log_co = -log(co)
-                if log_co == 0:
-                    # co == 1.0: words always co-occur → perfect NPMI = 1.0
-                    scores.append(1.0)
-                    continue
-                npmi_val = pmi / log_co
-                scores.append(npmi_val)
-        return float(np.mean(scores)) if scores else 0.0
-
-    all_scores = []
-    for tid_a, kws_a in topics_keywords_a.items():
-        best = max(
-            (pairwise_npmi(kws_a, kws_b) for kws_b in topics_keywords_b.values()),
-            default=0.0,
-        )
-        all_scores.append(best)
-
-    return float(np.mean(all_scores)) if all_scores else 0.0
 
 
 def compute_diversity(topic_distributions: list[list[float]]) -> float:
@@ -2264,75 +1869,6 @@ def sweep_outlier_strategies(
         ))
 
     agg = pd.DataFrame(agg_rows)
-    return raw, agg
-
-
-def sweep_outlier_threshold(
-    build_model,
-    docs: list[str],
-    embeddings: np.ndarray,
-    tokenized: list[list[str]],
-    dictionary,
-    seeds: Iterable[int],
-    grids: dict[str, list[float]],
-    reduce_nr: int | None = None,
-    top_n_metrics: int = 20,
-    checkpoint_path=None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Multi-seed sweep over per-strategy ``reduce_outliers`` thresholds.
-
-    ``checkpoint_path`` (opcional): ver ``sweep_outlier_strategies``.
-
-    Same fit-once-per-seed/copy-per-variant structure as
-    ``sweep_outlier_strategies``, but holds the strategy fixed per grid entry
-    and varies ``threshold`` instead — answers "does partial reallocation
-    beat threshold=0 (reallocate everything) or strategy='off' (reallocate
-    nothing)?". ``grids`` maps strategy -> list of thresholds to try, e.g.
-    ``{"c-tf-idf": [0.08, 0.12, 0.15]}`` (calibrate per strategy: c-tf-idf and
-    probabilities scores live in [0, 1]; embeddings cosine similarity is
-    typically high — calibrate against a seed=42 probe first).
-    """
-    _checkpoint_reset(checkpoint_path)
-    import copy
-
-    rows = []
-    kws_by: dict[tuple[str, float], dict[int, dict[int, list[str]]]] = {}
-
-    for seed in seeds:
-        base = build_model(seed)
-        base.fit_transform(docs, embeddings=embeddings)
-        for strat, grid in grids.items():
-            for thr in grid:
-                m = copy.deepcopy(base)
-                o_pre, o_post, n_raw = _bertopic_postprocess(
-                    m, docs, embeddings, strat, threshold=thr, reduce_nr=reduce_nr,
-                )
-                met, seed_kws = _bertopic_sweep_metrics(m, tokenized, dictionary, top_n_metrics)
-                kws_by.setdefault((strat, thr), {})[seed] = seed_kws
-                row = dict(strategy=strat, threshold=thr, seed=seed, n_raw=n_raw,
-                           outlier_pre=o_pre, outlier_post=o_post, **met)
-                rows.append(row)
-                _checkpoint_append_row(checkpoint_path, row)
-
-    raw = pd.DataFrame(rows)
-
-    agg_rows = []
-    for (strat, thr), kmap in kws_by.items():
-        sub = raw[(raw.strategy == strat) & (raw.threshold == thr)]
-        stab_m, stab_s = compute_stability(kmap) if len(kmap) >= 2 else (float("nan"), float("nan"))
-        agg_rows.append(dict(
-            strategy=strat, threshold=thr, n_seeds=len(sub),
-            K=round(sub["K"].mean(), 1),
-            outlier_post=round(sub["outlier_post"].mean(), 4),
-            C_v=round(sub["cv"].mean(), 4), Diversity=round(sub["div"].mean(), 4),
-            Exclus=round(sub["excl"].mean(), 4), FREX=round(sub["frex"].mean(), 4),
-            Stability=round(stab_m, 4), Stab_std=round(stab_s, 4),
-        ))
-
-    agg = (
-        pd.DataFrame(agg_rows).sort_values(["strategy", "threshold"]).reset_index(drop=True)
-        if agg_rows else pd.DataFrame(agg_rows)
-    )
     return raw, agg
 
 
@@ -2730,81 +2266,6 @@ def grid_search_alpha_eta(
         .reset_index(drop=True)
     )
     return df, df.iloc[0]["alpha"], df.iloc[0]["eta"]
-
-
-def stability_lda_fixed_k(
-    corpus_bow: list[list[tuple[int, int]]],
-    dictionary: Dictionary,
-    k: int,
-    seeds: Iterable[int] = (42, 123, 456),
-    alpha=None,
-    eta=None,
-    passes: int = 20,
-    top_n: int = 10,
-    workers: int | None = None,
-) -> tuple[float, float, pd.DataFrame]:
-    """Restricao A2 do protocolo: estabilidade dos topicos a K FIXO entre seeds.
-
-    No BERTopic, $K$ e SAIDA e a porta de admissibilidade e "K identico nas 3
-    seeds" (A1). No LDA, $K$ e ENTRADA e essa restricao e vacuamente satisfeita —
-    nao ha colapso de K para detectar. O que se transporta e o que a restricao
-    PROTEGE, nao a sua forma: uma estrutura que nao se reproduz entre execucoes
-    nao sustenta leitura substantiva. Dai a A2, que e a unica restricao que
-    atravessa as quatro familias (protocolo secao 4.1).
-
-    Ajusta o mesmo K com cada seed, casa os topicos por Jaccard guloso sobre as
-    listas de top-N e devolve ``(jaccard_medio, desvio, df_por_seed)``.
-
-    ATENCAO a ``workers``: o LDA nao e portavel entre maquinas (ver a nota em
-    ``grid_search_k``). Esta funcao mede variacao por SEMENTE numa maquina fixa;
-    ela nao mede, e nao pode medir, a variacao induzida por ``workers``.
-    """
-    por_seed: dict[int, dict[int, list[str]]] = {}
-    linhas: list[dict] = []
-    for s in seeds:
-        modelo = LdaMulticore(
-            corpus=corpus_bow, id2word=dictionary, num_topics=k,
-            random_state=s, passes=passes, workers=workers,
-            **({"alpha": alpha} if alpha is not None else {}),
-            **({"eta": eta} if eta is not None else {}),
-        )
-        kws = {
-            t: [w for w, _ in modelo.show_topic(t, topn=top_n)]
-            for t in range(k)
-        }
-        por_seed[s] = kws
-        linhas.append({"seed": s, "K": k, "n_topicos": len(kws)})
-    media, desvio = compute_stability(por_seed)
-    return float(media), float(desvio), pd.DataFrame(linhas)
-
-
-def train_lda(
-    corpus_bow: list[list[tuple[int, int]]],
-    dictionary: Dictionary,
-    k: int,
-    seed: int = 42,
-    passes: int = 20,
-    workers: int | None = None,
-    alpha: str | float | list = "symmetric",
-    eta: str | float | list | None = None,
-) -> LdaMulticore:
-    """Train final LDA model with chosen K, alpha and eta.
-
-    .. warning::
-       O resultado depende de ``workers`` — ver a nota em ``grid_search_k``.
-       Vale aqui tambem: o modelo FINAL publicado depende da contagem de
-       nucleos da maquina, nao so a selecao de K pelo grid.
-    """
-    return LdaMulticore(
-        corpus=corpus_bow,
-        id2word=dictionary,
-        num_topics=k,
-        random_state=seed,
-        passes=passes,
-        workers=workers,
-        alpha=alpha,
-        eta=eta,
-    )
 
 
 # ===========================================================================
@@ -3231,53 +2692,6 @@ def train_nmf(
         minimum_probability=minimum_probability,
         normalize=normalize,
     )
-
-
-def compute_nmf_reconstruction_error(
-    model: Nmf,
-    corpus_bow: list[list[tuple[int, int]]],
-) -> float:
-    """Erro de reconstrucao de Frobenius normalizado: ``||V - WH||_F / ||V||_F``.
-
-    Analogo honesto da perplexidade do LDA para o NMF (protocolo, C4, secao 4.2.2):
-    mede o quanto a fatoracao aproxima a matriz termo-documento observada, **nao**
-    qualidade de topico. ``gensim.models.Nmf`` nao expoe isso (sem
-    ``log_perplexity``), mas e computavel a partir de H (``get_topics()``) e W
-    (``get_document_topics()``).
-
-    V e construida a partir do ``corpus_bow`` (contagens brutas) e normalizada por
-    linha (L1, distribuicao de termos por documento) antes de comparar com ``WH``:
-    ``get_topics()`` devolve linhas de H que somam 1 (verificado, run
-    ``folha_20260723_235727``), e comparar contagens brutas contra uma
-    reconstrucao em escala de distribuicao inflaria o erro pela norma de V, nao
-    pela qualidade do ajuste. E decisao declarada de normalizacao, nao artefato.
-
-    ``minimum_probability=0.0`` em W para nao truncar a distribuicao antes de
-    medir o erro — ``minimum_probability`` e piso de LEITURA (mesma ressalva ja
-    registrada em ``grid_search_nmf_hparams``), nao deve contaminar uma metrica
-    de ajuste do modelo.
-    """
-    H = np.asarray(model.get_topics(), dtype=float)  # (k, n_terms), linhas somam 1
-    k, n_terms = H.shape
-    n_docs = len(corpus_bow)
-    V = np.zeros((n_docs, n_terms), dtype=float)
-    W = np.zeros((n_docs, k), dtype=float)
-    for i, bow in enumerate(corpus_bow):
-        for term_id, count in bow:
-            if term_id < n_terms:
-                V[i, term_id] = count
-        dist = dict(model.get_document_topics(bow, minimum_probability=0.0))
-        for t in range(k):
-            W[i, t] = dist.get(t, 0.0)
-
-    row_sums = V.sum(axis=1, keepdims=True)
-    row_sums[row_sums == 0] = 1.0
-    V_norm = V / row_sums
-
-    v_norm = float(np.linalg.norm(V_norm))
-    if v_norm == 0.0:
-        return 0.0
-    return float(np.linalg.norm(V_norm - W @ H) / v_norm)
 
 
 def extract_topics_keywords(
