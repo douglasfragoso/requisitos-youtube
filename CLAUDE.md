@@ -4,11 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Research pipeline: YouTube product-review video transcripts → Structural Topic Model (STM) at two
-granularities (document, sentence) → candidate requirements for requirements engineering. Current
-canonical design doc: `docs/idealizacao-artigo.txt` (actively maintained; treat it over
-`README.md`'s RQ table where they disagree — README references a `docs/specs/...` design doc that
-is not present on disk). Literature indexes: `articles/artigos_mapeados.txt`,
+Research pipeline: YouTube product-review video transcripts → STM at document level and
+global NMF followed by local NMF at sentence level → candidate requirements for review. The
+historical STM-sentence to NMF pipeline is a baseline, not the final sentence model. Current
+canonical design doc: `docs/idealizacao-artigo.txt` (actively maintained). Literature indexes: `articles/artigos_mapeados.txt`,
 `docs/related-works.md`.
 
 ## Commands
@@ -48,8 +47,8 @@ corresponding OS crash/sleep event).
 00-dataset/         raw JSON -> corpus CSV, product-category detection (regex + manual override)
 01-preprocessing/   language filter, cleaning -> corpus_limpo.csv
 02-sentences/       sentence segmentation with context; punctuation restoration for auto-captions only
-03-topic-modeling/  STM (document + sentence) + NMF restrito -- see below, this is where the complexity is
-04-requirements/    joins topic output into a human-review evidence table; NEVER auto-labels a
+03-topic-modeling/  STM document + global/local NMF sentence; STM sentence is a baseline
+04-requirements/    joins NMF topic output into a human-review evidence table; NEVER auto-labels a
                      requirement -- requirement_candidate/review_decision start blank and are only
                      ever filled in by a human, for evidence of any sentiment polarity
 ```
@@ -57,44 +56,42 @@ corresponding OS crash/sleep event).
 Each stage is independently testable. `01-preprocessing` has its own `configs/params.yaml`;
 everything from `03-topic-modeling` onward shares `03-topic-modeling/configs/params.yaml`.
 
-### `03-topic-modeling`: Python owns the protocol, R is only the training engine
+### `03-topic-modeling`: final NMF sentence pipeline and STM document analysis
 
 `_helpers.py` (~2.9k lines, the single most load-bearing file in the repo) prepares STM input,
-invokes `run_stm.R` as a subprocess, and re-scores everything in Python — R's own reported
-coherence is not what selection decisions are made on.
+invokes `run_stm.R` as a subprocess, and re-scores models in Python. The global sentence NMF
+has its own script and does not invoke the STM engine.
 
 **K-selection metric is scoped per model family — this is easy to get backwards:**
-- **STM**: Pareto frontier of *semantic coherence × exclusivity* (the `stm` package's own
-  `searchK` convention, UMass-family coherence) plus diversity. Not NPMI, not C_v.
-- **NMF / LDA (including NMF restrito)**: NPMI + diversity *decide* (`_selecao.py`'s `_pareto`);
-  C_v is computed and plotted but is reporting-only, never the selection criterion. This was a
-  deliberate, measured choice — C_v anticorrelates with NPMI at sentence granularity in this
-  project's own grid — not an oversight. Don't switch the criterion without re-measuring on the
-  actual corpus in question.
+- **STM document**: the pinned corrected run uses K=12, selected by peak C_v in its notebook;
+  `docs/idealizacao-artigo.txt` records the unresolved difference from the planned Pareto rule.
+- **Global sentence NMF**: final K=20 was chosen after qualitative inspection of K=15 and K=20;
+  reconstruction error alone was not treated as evidence of elicitation quality.
+- **Local sentence NMF**: K=2–6 for each selected global topic, Pareto frontier of NPMI ×
+  diversity, then highest NPMI on that frontier. C_v is reported, not used to choose K.
 - Admissible K ranges and `no_below`/`no_above` differ per corpus (`youtube_doc` vs
   `youtube_sent`) and live in `params.yaml`; never hardcode a K range in notebook code.
 
-**Two independent LLM configs in `params.yaml` — do not conflate them:**
+**LLM config in `params.yaml`:**
 - `llm`: names STM/NMF topics and subtopics (`name_all_topics` in `_helpers.py`). Output is **not
   deterministic** — always cite the run directory a name came from, never assume it's stable
   across reruns. Has a documented failure mode of plausible-sounding but wrong labels (e.g. a
   topic actually about camera reviews named after an unrelated keyword it happened to score
   highest on) — verify a generated name against a sample of the underlying documents before using
   it in analysis or prose.
-- `advisor`: `_advisor.py`, a hyperparameter-calibration assistant (OpenAI primary, Ollama
-  fallback). It only *proposes* `params.yaml` patches; it never writes the file or triggers a
-  sweep itself.
 
-**NMF restrito** (`03-topic-modeling/notebooks/nmf/01_nmf_youtube_sent_aspecto.ipynb`)
-reconstructs its per-topic sentence subset by *positional alignment* with the STM's `theta`
-output, guarded by an explicit `assert len(df_full) == len(stm_input)` — there is no reliable
-sentence-level join key in `stm_input.csv` (only the video-level `post_id`). Any change to
-pre-STM filtering upstream breaks this alignment.
+**Final local NMF** (`03-topic-modeling/scripts/run_restricted_nmf_gensim.py`) consumes selected
+topics from the pinned global NMF run. `04-requirements/nmf_requirement_review.py` joins global
+and local results by `sent_id`, validates their original text/category/topic/weight, and creates
+the final blinded human-review sample. The final configuration is
+`params.yaml::final_sentence_pipeline`. The old notebook
+`03-topic-modeling/notebooks/nmf/01_nmf_youtube_sent_aspecto.ipynb` uses positional alignment
+with STM's `theta`; it is only for the historical baseline.
 
 ### Output data is not versioned
 
-`.gitignore` excludes `*/data/raw/*`, `*/data/output/*`, `docs/`, and `articles/` — model runs,
-metrics CSVs, working specs, and downloaded papers exist only on disk, never in git history. The
-one exception to the blanket `*.json` ignore is `*/configs/*.json`. `params.yaml` is therefore the
-actual source of truth for what a given run used, since the run's own output directory isn't
-committed.
+`.gitignore` excludes `*/data/raw/*`, `*/data/output/*`, `docs/`, and `articles/`. The existing
+`docs/idealizacao-artigo.txt` is already tracked and remains versioned; new analysis reports and
+model runs are local unless explicitly added. The exception to the blanket `*.json` ignore is
+`*/configs/*.json`. The final run IDs and selected topics are pinned in `params.yaml`, while the
+untracked run directories hold their own detailed manifests and data.

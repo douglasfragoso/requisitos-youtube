@@ -88,11 +88,10 @@ llm:
   enabled: true
   timeout_per_topic: 30
 
-# === NMF restrito (refinamento pos-STM, RQ4 — docs/idealizacao-artigo.txt §6) ===
-# Decompoe, topico a topico, so as sentencas dos topicos STM classificados como
-# "aspecto genuino" (ou limitrofe) em subtemas — nao e comparacao com o STM nem
-# 5a granularidade, por isso NAO reaproveita stm_k_range/stm_no_below do corpus:
-# subconjuntos por topico sao bem menores que o corpus inteiro.
+# === NMF local (mesmo protocolo nos fluxos final e baseline historico) ===
+# O run final usa os temas de final_sentence_pipeline. Os campos stm_run e
+# aspect_topics abaixo identificam apenas o baseline STM de sentencas -> NMF.
+# Subconjuntos por tema sao menores que o corpus inteiro.
 nmf_restrito:
   youtube_sent:
     stm_run: youtube_sent_20260921_190124  # run final K=15 (pinado, ver docs/idealizacao-artigo.txt §5.2)
@@ -107,6 +106,18 @@ nmf_restrito:
     # porque o sub-corpus concatenado e ~5-10x maior que um topico isolado.
     no_below_concat: 10
     k_values_concat: [8, 12, 16, 20, 24]
+
+# === Modelo final de sentencas: NMF global -> NMF local ===
+# STM permanece no nivel de documento; STM de sentencas e baseline historico.
+final_sentence_pipeline:
+  global_run: nmf_global_sentence_k20_20261003_134035
+  global_k: 20
+  selected_topics: [1, 3, 5, 7, 9, 10, 11, 14, 15, 17]
+  local_subdir: restricted_gensim
+  expected_sentences: 57952
+  review_output: nmf_global_k20_20261003_final
+  top_k: 50
+  n_random: 100
 
 # === Modelo guiado por sementes congeladas (H6) ===
 guided:
@@ -175,21 +186,3 @@ evaluation:
   robustness_top_n_sweep: [10, 15, 20, 25, 30, 50, 100]
   stm_sigma_prior_grid: [0, 0.3, 0.5, 0.7]
   stm_gamma_prior_grid: ["Pooled", "L1"]
-
-# === Assessor de calibracao ===
-advisor:
-  enabled: true
-  provider: openai
-  model: "gpt-4.1-mini"
-  base_url: null
-  api_key_env: OPENAI_API_KEY
-  fallback:
-    provider: ollama
-    model: "gemma4:31b"
-    base_url: "https://ollama.com/v1"
-    api_key_env: OLLAMA_API_KEY
-  viz_panel: true
-  max_output_tokens: 4000
-  temperature: 0.2
-  rounds: 3
-  prompts_dir: advisor_prompts

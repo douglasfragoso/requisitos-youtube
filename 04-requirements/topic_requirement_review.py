@@ -1,4 +1,4 @@
-"""Join aspect topics to sentence evidence for human requirements review."""
+"""Shared lexical ranking and human-review helpers; legacy STM baseline join."""
 
 import json
 import re
@@ -101,10 +101,13 @@ def build_rankings(evidence: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
     """Rank the same sentence pool by topic, lexical cues and their combination."""
     if not evidence.sent_id.is_unique:
         raise ValueError("sent_id duplicado")
-    frame = evidence[["sent_id", "nmf_topic_weight", "lex_hit", "lex_n"]].copy()
-    frame["topic_score"] = frame.nmf_topic_weight * (
-        evidence.stm_topic_weight if "stm_topic_weight" in evidence else 1.0
-    )
+    frame = evidence[["sent_id", "lex_hit", "lex_n"]].copy()
+    if "topic_score" in evidence:
+        frame["topic_score"] = evidence.topic_score
+    else:
+        frame["topic_score"] = evidence.nmf_topic_weight * (
+            evidence.stm_topic_weight if "stm_topic_weight" in evidence else 1.0
+        )
     frame["_random_tie"] = np.random.default_rng(seed).permutation(len(frame))
     rules = {
         "topico": (["topic_score", "_random_tie", "sent_id"],
@@ -232,7 +235,8 @@ def run_review(sentences, stm_results, nmf_by_stm_topic, expected_topics,
         frac_lex_hit=("lex_hit", "mean"),
     ).reset_index()
     grouped.to_csv(output_dir / "sinais_por_topico.csv", index=False, encoding="utf-8")
-    summary = {"n_evidence": int(len(evidence)), "n_lex_hit": int(evidence.lex_hit.sum()),
+    summary = {"pipeline": "stm_sentence_to_nmf_baseline",
+               "n_evidence": int(len(evidence)), "n_lex_hit": int(evidence.lex_hit.sum()),
                "n_blind": int(len(blind)), "top_k": int(top_k),
                "n_random": int(n_random), "seed": int(seed),
                "review_status": "aguardando_anotacao_humana",
@@ -256,8 +260,13 @@ def score_annotated_sample(annotations, origin, top_k=50, n_random=100):
     results = {name: precision_at_k(annotations, origin, name,
                                     n_random if name == "aleatoria" else top_k)
                for name in ("topico", "lexical", "topico_lexical", "aleatoria")}
-    group_cols = ["stm_topic_id", "nmf_topic_id"] if "nmf_topic_id" in merged else ["stm_topic_id"]
-    for name in ("stm_topic_name", "nmf_topic_name"):
+    if {"global_topic_id", "local_topic_id"} <= set(merged):
+        group_cols = ["global_topic_id", "local_topic_id"]
+        optional_names = ("global_topic_name", "local_topic_name")
+    else:
+        group_cols = ["stm_topic_id", "nmf_topic_id"] if "nmf_topic_id" in merged else ["stm_topic_id"]
+        optional_names = ("stm_topic_name", "nmf_topic_name")
+    for name in optional_names:
         if name in merged:
             group_cols.append(name)
     merged["is_requirement"] = merged.requirement_candidate.eq("sim")

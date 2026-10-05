@@ -1,4 +1,4 @@
-"""Score a completed blinded annotation sheet against its hidden origin file."""
+"""Score human annotations for the final NMF run or the historical STM baseline."""
 
 import argparse
 import json

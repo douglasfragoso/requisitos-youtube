@@ -1,4 +1,10 @@
-# Guia de revisão de requisitos candidatos nos tópicos
+# Guia de revisão de requisitos candidatos no modelo final NMF → NMF
+
+O run final de sentenças está em
+`04-requirements/data/output/topicos_requisitos/nmf_global_k20_20261003_final/`.
+Ele reúne 57.952 frases de dez temas do NMF global e seus subtópicos NMF;
+`amostra_cega.csv` contém 212 frases únicas para revisão. O antigo run
+`20260928_v4/` é o baseline STM de sentenças → NMF e não substitui esta amostra.
 
 ## Unidade e decisão
 
@@ -40,8 +46,9 @@ Os resultados de precisão@50 para `topico`, `lexical` e `topico_lexical` e a
 taxa entre as 100 aleatórias só devem ser calculados quando todos esses itens
 tiverem `sim`, `nao` ou `incerto`. O pool seleciona itens por várias regras e
 não fornece, sozinho, recall no corpus inteiro.
-O score de tópico (peso STM × peso NMF) é uma heurística de ordenação, não uma
-probabilidade calibrada de requisito. A amostra aleatória exclui os top-50 das
+O score de tópico (peso NMF global × peso NMF local) é uma heurística de ordenação,
+não uma probabilidade calibrada de requisito. As 711 frases sem subtópico local
+continuam no conjunto com score temático zero. A amostra aleatória exclui os top-50 das
 outras listas; sua taxa é um controle desse restante do corpus. Os intervalos
 de Wilson produzidos pelo script são exploratórios e não modelam a dependência
 entre sentenças do mesmo vídeo.
@@ -49,7 +56,7 @@ entre sentenças do mesmo vídeo.
 Depois de salvar uma cópia preenchida da planilha, execute:
 
 ```powershell
-& '.venv/Scripts/python.exe' '04-requirements/score_topic_requirement_review.py' --run '04-requirements/data/output/topicos_requisitos/20260928_v4' --annotations 'CAMINHO_DA_COPIA_PREENCHIDA.csv'
+& '.venv/Scripts/python.exe' '04-requirements/score_topic_requirement_review.py' --run '04-requirements/data/output/topicos_requisitos/nmf_global_k20_20261003_final' --annotations 'CAMINHO_DA_COPIA_PREENCHIDA.csv'
 ```
 
 O comando grava `resultado_revisao.json` e
