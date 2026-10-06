@@ -1,8 +1,6 @@
-"""Shared lexical ranking and human-review helpers; legacy STM baseline join."""
+"""Lexical cues, reading-order rankings, blinded sample and scoring of human labels."""
 
-import json
 import re
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -20,67 +18,6 @@ LEXICON = {
         r"\bdrawback\b", r"\bunfortunately\b",
     ),
 }
-
-
-def _dominant_weight(distribution, topic_id):
-    weights = json.loads(distribution)
-    if not isinstance(weights, list) or not 0 <= int(topic_id) < len(weights):
-        raise ValueError("distribuicao de topicos invalida")
-    return float(weights[int(topic_id)])
-
-
-def join_topic_evidence(sentences, stm_results, nmf_by_stm_topic, expected_topics):
-    """Join all canonical NMF aspect sentences to their original evidence."""
-    missing = set(expected_topics) - set(nmf_by_stm_topic)
-    if missing:
-        raise ValueError(f"runs NMF faltando: {sorted(missing)}")
-    nmf_parts = []
-    for stm_topic in expected_topics:
-        columns = ["post_id", "topic_id", "topic_prob_distribution"]
-        if "topic_name" in nmf_by_stm_topic[stm_topic]:
-            columns.append("topic_name")
-        part = nmf_by_stm_topic[stm_topic][columns].copy()
-        part["stm_topic_id_expected"] = stm_topic
-        nmf_parts.append(part)
-    nmf = pd.concat(nmf_parts, ignore_index=True).rename(columns={
-        "post_id": "sent_id", "topic_id": "nmf_topic_id",
-        "topic_prob_distribution": "nmf_distribution",
-        "topic_name": "nmf_topic_name",
-    })
-    if not nmf.sent_id.is_unique:
-        raise ValueError("sent_id duplicado nos runs NMF")
-    if not sentences.sent_id.is_unique or not stm_results.post_id.is_unique:
-        raise ValueError("sent_id duplicado nas entradas")
-    selected = sentences.loc[sentences.sent_id.isin(nmf.sent_id)].copy()
-    if len(selected) != len(nmf):
-        raise ValueError("sent_id NMF ausente no corpus de sentencas")
-    out = selected.merge(nmf, on="sent_id", how="left", validate="one_to_one", sort=False)
-    stm_columns = ["post_id", "topic_id"]
-    if "topic_name" in stm_results:
-        stm_columns.append("topic_name")
-    if "topic_prob_distribution" in stm_results:
-        stm_columns.append("topic_prob_distribution")
-    stm = stm_results[stm_columns].rename(columns={
-        "post_id": "sent_id", "topic_id": "stm_topic_id",
-        "topic_name": "stm_topic_name",
-        "topic_prob_distribution": "stm_distribution",
-    })
-    out = out.merge(stm, on="sent_id", how="left", validate="one_to_one", sort=False)
-    if out.stm_topic_id.isna().any() or not out.stm_topic_id.eq(out.stm_topic_id_expected).all():
-        raise ValueError("sent_id ou tema STM divergente dos runs NMF")
-    out["nmf_topic_weight"] = [
-        _dominant_weight(dist, topic)
-        for dist, topic in zip(out.nmf_distribution, out.nmf_topic_id)
-    ]
-    if "stm_distribution" in out:
-        out["stm_topic_weight"] = [
-            _dominant_weight(dist, topic)
-            for dist, topic in zip(out.stm_distribution, out.stm_topic_id)
-        ]
-    else:
-        out["stm_topic_weight"] = 1.0
-    return out.drop(columns=["stm_topic_id_expected", "nmf_distribution",
-                             "stm_distribution"], errors="ignore")
 
 
 def score_lexical(sentences: pd.Series) -> pd.DataFrame:
@@ -101,13 +38,7 @@ def build_rankings(evidence: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
     """Rank the same sentence pool by topic, lexical cues and their combination."""
     if not evidence.sent_id.is_unique:
         raise ValueError("sent_id duplicado")
-    frame = evidence[["sent_id", "lex_hit", "lex_n"]].copy()
-    if "topic_score" in evidence:
-        frame["topic_score"] = evidence.topic_score
-    else:
-        frame["topic_score"] = evidence.nmf_topic_weight * (
-            evidence.stm_topic_weight if "stm_topic_weight" in evidence else 1.0
-        )
+    frame = evidence[["sent_id", "lex_hit", "lex_n", "topic_score"]].copy()
     frame["_random_tie"] = np.random.default_rng(seed).permutation(len(frame))
     rules = {
         "topico": (["topic_score", "_random_tie", "sent_id"],
@@ -197,56 +128,6 @@ def precision_at_k(annotations, origin, ranking, k):
             "ci_high": float(center + half)}
 
 
-def discover_nmf_results(nmf_root: Path, aspect_topics):
-    """Require exactly one canonical NMF result for each STM aspect topic."""
-    paths = {}
-    for topic in aspect_topics:
-        name = f"topic{int(topic):02d}"
-        matches = sorted((nmf_root / name).glob(f"{name}_*/nmf_results.csv"))
-        if len(matches) != 1:
-            raise ValueError(f"{name}: esperado um run NMF, encontrados {len(matches)}")
-        paths[int(topic)] = matches[0]
-    return paths
-
-
-def run_review(sentences, stm_results, nmf_by_stm_topic, expected_topics,
-               output_dir: Path, top_k=50, n_random=100, seed=42):
-    """Write the evidence and a blinded, unlabelled human-review sample."""
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    evidence = join_topic_evidence(sentences, stm_results, nmf_by_stm_topic,
-                                   expected_topics)
-    lexical = score_lexical(evidence.sentence)
-    evidence = pd.concat([evidence.reset_index(drop=True), lexical.reset_index(drop=True)], axis=1)
-    evidence["topic_score"] = evidence.stm_topic_weight * evidence.nmf_topic_weight
-    rankings = build_rankings(evidence, seed=seed)
-    blind, origin = make_blind_sample(evidence, rankings, top_k=top_k,
-                                      n_random=n_random, seed=seed)
-    evidence.to_csv(output_dir / "evidencias.csv", index=False, encoding="utf-8")
-    rankings.to_csv(output_dir / "rankings.csv", index=False, encoding="utf-8")
-    blind.to_csv(output_dir / "amostra_cega.csv", index=False, encoding="utf-8")
-    origin.to_csv(output_dir / "amostra_origem.csv", index=False, encoding="utf-8")
-    group_columns = ["stm_topic_id", "nmf_topic_id"]
-    for name in ("stm_topic_name", "nmf_topic_name"):
-        if name in evidence:
-            group_columns.append(name)
-    grouped = evidence.groupby(group_columns, dropna=False).agg(
-        n=("sent_id", "size"), n_lex_hit=("lex_hit", "sum"),
-        frac_lex_hit=("lex_hit", "mean"),
-    ).reset_index()
-    grouped.to_csv(output_dir / "sinais_por_topico.csv", index=False, encoding="utf-8")
-    summary = {"pipeline": "stm_sentence_to_nmf_baseline",
-               "n_evidence": int(len(evidence)), "n_lex_hit": int(evidence.lex_hit.sum()),
-               "n_blind": int(len(blind)), "top_k": int(top_k),
-               "n_random": int(n_random), "seed": int(seed),
-               "review_status": "aguardando_anotacao_humana",
-               "topic_score": "stm_topic_weight * nmf_topic_weight", "lexicon": LEXICON}
-    (output_dir / "metadata.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    return summary
-
-
 def score_annotated_sample(annotations, origin, top_k=50, n_random=100):
     """Summarize completed human labels; topic counts describe the pooled sample."""
     if not annotations.review_id.is_unique or not origin.review_id.is_unique:
@@ -260,13 +141,8 @@ def score_annotated_sample(annotations, origin, top_k=50, n_random=100):
     results = {name: precision_at_k(annotations, origin, name,
                                     n_random if name == "aleatoria" else top_k)
                for name in ("topico", "lexical", "topico_lexical", "aleatoria")}
-    if {"global_topic_id", "local_topic_id"} <= set(merged):
-        group_cols = ["global_topic_id", "local_topic_id"]
-        optional_names = ("global_topic_name", "local_topic_name")
-    else:
-        group_cols = ["stm_topic_id", "nmf_topic_id"] if "nmf_topic_id" in merged else ["stm_topic_id"]
-        optional_names = ("stm_topic_name", "nmf_topic_name")
-    for name in optional_names:
+    group_cols = ["global_topic_id", "local_topic_id"]
+    for name in ("global_topic_name", "local_topic_name"):
         if name in merged:
             group_cols.append(name)
     merged["is_requirement"] = merged.requirement_candidate.eq("sim")
