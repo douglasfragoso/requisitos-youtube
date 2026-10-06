@@ -1,4 +1,4 @@
-"""Score human annotations for the final NMF run or the historical STM baseline."""
+"""Score human annotations of the final NMF blinded review sample."""
 
 import argparse
 import json

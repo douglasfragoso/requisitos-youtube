@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Research pipeline: YouTube product-review video transcripts → STM at document level and
 global NMF followed by local NMF at sentence level → candidate requirements for review. The
-historical STM-sentence to NMF pipeline is a baseline, not the final sentence model. Current
-canonical design doc: `docs/idealizacao-artigo.txt` (actively maintained). Literature indexes: `articles/artigos_mapeados.txt`,
+old STM-sentence and guided/BRETT experiments were removed in the 2026-10 cleanup (see git
+history). Current canonical design doc: `docs/idealizacao-artigo.txt` (actively maintained). Literature indexes: `articles/artigos_mapeados.txt`,
 `docs/related-works.md`.
 
 ## Commands
@@ -24,13 +24,13 @@ No root pytest config — each pipeline stage is its own test target:
 .venv/Scripts/python -m pytest 01-preprocessing/test_corpus_limpo.py
 .venv/Scripts/python -m pytest 02-sentences/
 .venv/Scripts/python -m pytest 03-topic-modeling/notebooks/test_helpers.py   # largest, most load-bearing suite
-.venv/Scripts/python -m pytest 04-requirements/test_build_review_table.py
+.venv/Scripts/python -m pytest 04-requirements/
 ```
 
 Single test: `-k <name>` or `path::test_name`. `test_helpers.py` deliberately does not cover
 anything that requires fitting a model (grid searches, `train_*`, sweeps) — those take hours and
 depend on corpus state; verify them by running the actual notebook and inspecting its output
-(`*_grid_k_diagnostics.csv`, `*_final.json`), not pytest.
+(`grid.csv`, `manifest.json`), not pytest.
 
 Notebooks run via `jupyter nbconvert --to notebook --execute --inplace <path>` (kernel
 `topicmodeling-venv`). Long grid sweeps should go through
@@ -47,7 +47,7 @@ corresponding OS crash/sleep event).
 00-dataset/         raw JSON -> corpus CSV, product-category detection (regex + manual override)
 01-preprocessing/   language filter, cleaning -> corpus_limpo.csv
 02-sentences/       sentence segmentation with context; punctuation restoration for auto-captions only
-03-topic-modeling/  STM document + global/local NMF sentence; STM sentence is a baseline
+03-topic-modeling/  STM document + global/local NMF sentence
 04-requirements/    joins NMF topic output into a human-review evidence table; NEVER auto-labels a
                      requirement -- requirement_candidate/review_decision start blank and are only
                      ever filled in by a human, for evidence of any sentiment polarity
@@ -58,7 +58,7 @@ everything from `03-topic-modeling` onward shares `03-topic-modeling/configs/par
 
 ### `03-topic-modeling`: final NMF sentence pipeline and STM document analysis
 
-`_helpers.py` (~2.9k lines, the single most load-bearing file in the repo) prepares STM input,
+`_helpers.py` (~1.6k lines, the single most load-bearing file in the repo) prepares STM input,
 invokes `run_stm.R` as a subprocess, and re-scores models in Python. The global sentence NMF
 has its own script and does not invoke the STM engine.
 
@@ -84,9 +84,12 @@ has its own script and does not invoke the STM engine.
 topics from the pinned global NMF run. `04-requirements/nmf_requirement_review.py` joins global
 and local results by `sent_id`, validates their original text/category/topic/weight, and creates
 the final blinded human-review sample. The final configuration is
-`params.yaml::final_sentence_pipeline`. The old notebook
-`03-topic-modeling/notebooks/nmf/01_nmf_youtube_sent_aspecto.ipynb` uses positional alignment
-with STM's `theta`; it is only for the historical baseline.
+`params.yaml::final_sentence_pipeline`.
+
+Run the NMF stages through `03-topic-modeling/notebooks/nmf/01_nmf_global.ipynb` and
+`02_nmf_topicos.ipynb` (they call the scripts). `final_sentence_pipeline.global_run` and
+`selected_topics` start empty: topic IDs change on every retrain, so fill them after reading
+the global run.
 
 ### Output data is not versioned
 

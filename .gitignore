@@ -18,6 +18,7 @@ articles/
 !*/data/output/.gitkeep
 *.json
 !*/configs/*.json
+!00-dataset/transcricoes_youtube_metadados.json
 *.log
 
 # --- Caches de modelos ---

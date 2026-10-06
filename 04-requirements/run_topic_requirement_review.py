@@ -21,10 +21,13 @@ def main():
     with PARAMS.open(encoding="utf-8") as handle:
         params = yaml.safe_load(handle)
     cfg = params["final_sentence_pipeline"]
+    if not cfg.get("global_run") or not cfg.get("selected_topics"):
+        raise ValueError("preencha global_run e selected_topics em "
+                         "params.yaml::final_sentence_pipeline")
     default_run = (ROOT / "03-topic-modeling/data/output/youtube_sent/nmf_global"
                    / cfg["global_run"])
     default_output = (ROOT / "04-requirements/data/output/topicos_requisitos"
-                      / cfg["review_output"])
+                      / (cfg.get("review_output") or f"{cfg['global_run']}_revisao"))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--global-run", type=Path, default=default_run)
     parser.add_argument("--topics", type=int, nargs="+", default=cfg["selected_topics"])

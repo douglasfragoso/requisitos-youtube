@@ -1,4 +1,4 @@
-"""Reuse the historical Gensim BoW NMF protocol on selected global NMF topics."""
+"""Local NMF (Gensim, BoW of spaCy lemmas) inside the selected global NMF topics."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def run(global_run: Path, topics: list[int], seed: int) -> None:
     with PARAMS.open(encoding="utf-8") as handle:
         params = yaml.safe_load(handle)
     cfg = params["corpora"]["youtube_sent"]
-    local_cfg = params["nmf_restrito"]["youtube_sent"]
+    local_cfg = params["final_sentence_pipeline"]["local"]
     no_below = int(local_cfg["no_below"])
     no_above = float(local_cfg["no_above"])
     ks = list(range(int(local_cfg["k_range"][0]), int(local_cfg["k_range"][1]) + 1))
@@ -117,30 +117,18 @@ def run(global_run: Path, topics: list[int], seed: int) -> None:
                    "n_sentences": len(subset), "vocabulary_size": len(dictionary),
                    "empty_bow": sum(not row for row in corpus_bow),
                    "unassigned": sum(topic < 0 for topic in dominant),
-                   "method": "Gensim Nmf on spaCy lemmas, raw BoW counts; grid passes=10, final passes=20; Pareto NPMI x diversity"}
+                   "method": "Gensim Nmf on spaCy lemmas, raw BoW counts; grid passes=10, final passes=20; highest NPMI on the NPMI x diversity frontier"}
         (output / "manifest.json").write_text(json.dumps(details, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"tema global {global_topic}: K={best_k} | {len(dictionary)} termos | {output}", flush=True)
 
 
-def repair_empty_assignments(global_run: Path, topics: list[int]) -> None:
-    """Correct outputs made before empty BoW rows were marked unassigned."""
-    for global_topic in topics:
-        output = global_run / "restricted_gensim" / f"topic{global_topic:02d}"
-        assignments = pd.read_csv(output / "nmf_results.csv")
-        empty = assignments.local_topic_distribution.map(
-            lambda value: sum(json.loads(value)) == 0
-        )
-        assignments.loc[empty, "local_topic_id"] = -1
-        assignments.to_csv(output / "nmf_results.csv", index=False)
-        topics_frame = pd.read_csv(output / "topics.csv")
-        counts = assignments.local_topic_id.value_counts()
-        topics_frame["n_sentences"] = topics_frame.topic_id.map(counts).fillna(0).astype(int)
-        topics_frame.to_csv(output / "topics.csv", index=False)
-        manifest_path = output / "manifest.json"
-        details = json.loads(manifest_path.read_text(encoding="utf-8"))
-        details["unassigned"] = int(empty.sum())
-        manifest_path.write_text(json.dumps(details, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"tema global {global_topic}: {int(empty.sum())} frases sem palavras → -1", flush=True)
+def pinned_global_run(params: dict) -> Path:
+    """Global run pinned in params.yaml; fails clearly while it is still empty."""
+    final = params["final_sentence_pipeline"]
+    if not final.get("global_run"):
+        raise ValueError("preencha final_sentence_pipeline.global_run no params.yaml "
+                         "depois de rodar o NMF global")
+    return ROOT / "03-topic-modeling/data/output/youtube_sent/nmf_global" / final["global_run"]
 
 
 def main() -> None:
@@ -148,17 +136,13 @@ def main() -> None:
     with PARAMS.open(encoding="utf-8") as handle:
         params = yaml.safe_load(handle)
     final = params["final_sentence_pipeline"]
-    default_run = (ROOT / "03-topic-modeling/data/output/youtube_sent/nmf_global"
-                   / final["global_run"])
-    parser.add_argument("global_run", type=Path, nargs="?", default=default_run)
+    parser.add_argument("global_run", type=Path, nargs="?")
     parser.add_argument("--topics", type=int, nargs="+", default=final["selected_topics"])
     parser.add_argument("--seed", type=int, default=params["seed"])
-    parser.add_argument("--repair-existing", action="store_true")
     args = parser.parse_args()
-    if args.repair_existing:
-        repair_empty_assignments(args.global_run, args.topics)
-    else:
-        run(args.global_run, args.topics, args.seed)
+    if not args.topics:
+        raise ValueError("preencha final_sentence_pipeline.selected_topics no params.yaml")
+    run(args.global_run or pinned_global_run(params), args.topics, args.seed)
 
 
 if __name__ == "__main__":

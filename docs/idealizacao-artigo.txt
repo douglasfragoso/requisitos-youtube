@@ -347,6 +347,54 @@ por LLM nos runs históricos não servem de gabarito para o novo run.
 O Guided NMF de 5.5 e o BRETT de 5.6 são pilotos históricos. Nenhuma dessas
 saídas entra nas etapas (a)-(f) do pipeline final.
 
+4.7A Protocolo de teste de hipótese (RQ4) — proposto em 2026-10-05
+Pergunta: ler na ordem de um ranking encontra mais requisitos candidatos do
+que ler frases ao acaso? Ordem das etapas:
+  1. Antes de anotar: corrigir o desempate do ranking `topico` (5.3C) e
+     registrar as regras abaixo em commit, como pré-registro.
+  2. Dupla anotação independente de 50 frases, sorteadas entre todas as
+     origens da amostra (tema, léxico, combinação e aleatória).
+  3. Confiabilidade: kappa de Cohen com IC 95% por bootstrap, mais
+     concordância percentual e Gwet AC1 (o kappa cai quando quase tudo é
+     "sim" ou quase tudo é "não"). O kappa não é o teste da RQ4; ele mostra
+     se o rótulo humano é confiável o bastante para ser usado como
+     referência. Limiar a fixar antes, por exemplo κ ≥ 0,6. Abaixo dele,
+     revisar o guia e repetir a dupla leitura.
+  4. Adjudicação das divergências e anotação das frases restantes. O
+     resultado é o rótulo de referência (padrão-ouro), não verdade absoluta.
+  5. Teste principal, um por ranking R (`topico`, `lexical`,
+     `topico_lexical`):
+       H0: p_R = p_base; H1: p_R > p_base (unilateral),
+     onde p_R é a proporção de "sim" no top-50 de R e p_base a proporção
+     nas 100 frases aleatórias. Tabela 2x2 ("sim"/"não" x top-50/aleatórias),
+     teste exato de Fisher unilateral, α = 0,05 com correção de Holm para
+     as três comparações. "Incerto" conta como "não" na análise principal.
+     Reportar também a diferença em pontos percentuais, o lift
+     (p_R/p_base) e o IC 95% da diferença por bootstrap de vídeos
+     (reamostrar vídeos inteiros, não frases).
+  6. Robustez, sem papel decisório: (a) teste de Cochran–Mantel–Haenszel
+     estratificado por canal, para verificar se o ganho se mantém dentro de
+     Dave2D, Just Josh e Marques Brownlee e não reflete só o estilo de um
+     revisor (5.3C-B); (b) repetir o teste com "incerto" contado como "sim".
+  7. Análise secundária: comparar rankings entre si (por exemplo,
+     `topico_lexical` x `lexical`) por teste de permutação, porque os tops
+     compartilham frases e o Fisher supõe grupos disjuntos.
+Poder: com 50 x 100 frases, Holm e poder de 80%, o teste detecta apenas
+diferenças de cerca de 22-26 p.p. (taxa-base entre 20% e 50%). Resultado não
+significativo significa "não se detectou diferença dessa ordem", não que os
+métodos sejam equivalentes. Diferenças menores exigiriam top-100, decisão a
+tomar antes de anotar.
+Limitações declaradas: as 100 aleatórias vêm de fora dos tops, então a
+taxa-base pode estar levemente subestimada; com quatro canais, a inferência
+vale para esses canais e não para reviews do YouTube em geral.
+Alternativas avaliadas e não adotadas como principal: qui-quadrado e teste z
+de duas proporções (aproximações frágeis com n = 50); teste binomial contra
+uma meta fixa (útil só se a meta for fixada antes); regressão logística com
+ranking, canal e categoria (instável com cerca de 200 frases anotadas).
+Implementação prevista: parâmetros em `params.yaml::final_sentence_pipeline`
+e cálculo em `04-requirements/score_topic_requirement_review.py`, com o
+canal incluído em `amostra_origem.csv`.
+
 4.8 Sentimento/intenção pós-hoc e critério de sucesso do MVP (RQ4/H5)
 No desenho proposto para H5, sentimento entraria como tag por sentença, nos
 temas de aspecto — não como covariável de prevalência nem como filtro.
@@ -1083,7 +1131,8 @@ run NMF final nem usados para mudar retroativamente a seleção de temas:
    Uma segunda pessoa revisa uma fração de modo independente. A leitura
    exploratória do assistente não é gabarito.
 2. Pontuar, após a anotação, os rankings de tema, léxico e combinação com
-   precisão@50 e comparar com as 100 frases aleatórias fora dos tops.
+   precisão@50 e comparar com as 100 frases aleatórias fora dos tops,
+   pelo teste exato de Fisher unilateral com Holm (protocolo em 4.7A).
    Repetir a avaliação no baseline STM -> NMF com o mesmo protocolo humano,
    sem comparar diretamente as auditorias exploratórias anteriores.
 3. Para estimar requisitos perdidos fora dos rankings e prevalência no corpus,
@@ -1274,7 +1323,9 @@ panorama e surveys, ao lado de Cai et al. 2025).
 9. PONTOS EM ABERTO
 ---------------------
 - Fechar protocolo de anotação humana em RQ4: guia prevê segunda leitura
-  independente de 50 itens; definir concordância e adjudicação.
+  independente de 50 itens. Protocolo de concordância (kappa, AC1) e de teste
+  (Fisher unilateral com Holm, robustez por canal) proposto em 4.7A; falta
+  fixar o limiar de kappa e registrar as regras antes de anotar.
 - Modelo de sentimento/intenção, com ou sem ABSA, e protocolo de validação
   (4.8).
 - Meta numérica do critério de sucesso de H5 — fixar antes do piloto (4.8).
@@ -1425,3 +1476,10 @@ panorama e surveys, ao lado de Cai et al. 2025).
   frases com marca lexical não negada.
 - NOVO: ao menos 6,6% das frases com marca lexical são negações ("no
   problem", "not an issue").
+
+2026-10-05 — Protocolo de teste de hipótese da RQ4 (4.7A):
+- NOVO: kappa (com AC1) definido como verificação de confiabilidade do
+  rótulo humano, não como teste da RQ4; teste principal = Fisher exato
+  unilateral de cada ranking contra a amostra aleatória, com Holm;
+  Cochran–Mantel–Haenszel por canal como robustez; permutação para
+  comparar rankings entre si. Poder limitado a diferenças de ~22-26 p.p.

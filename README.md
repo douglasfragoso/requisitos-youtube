@@ -1,44 +1,54 @@
 # Tópicos em reviews do YouTube para elicitação de requisitos
 
-Este projeto analisa 1.109 transcrições de reviews de produtos. O modelo final usa **STM nos documentos** para descrever a estrutura temática por categoria e data. Nas sentenças, usa **NMF global → NMF local** para organizar evidências de requisitos que serão julgadas por pessoas. O STM de sentenças → NMF é preservado como baseline histórico.
+Este projeto analisa transcrições de reviews de produtos no YouTube (1.109 vídeos em inglês após o filtro de idioma). Usa **STM nos documentos** para descrever a estrutura temática por categoria e data e **NMF global → NMF local** nas sentenças para organizar evidências de requisitos que serão julgadas por pessoas. Nenhuma frase é rotulada como requisito automaticamente.
 
-O documento de pesquisa atualizado é [docs/idealizacao-artigo.txt](docs/idealizacao-artigo.txt). A comparação dos pipelines está em [docs/analises/comparacao_stm_nmf_20261003/relatorio.md](docs/analises/comparacao_stm_nmf_20261003/relatorio.md).
+O documento de pesquisa é [docs/idealizacao-artigo.txt](docs/idealizacao-artigo.txt).
 
-## Fluxo final de sentenças
+## Pipeline, do dado bruto à revisão humana
 
-1. `02-sentences/` segmenta as transcrições e guarda a frase central, uma vizinha de cada lado, categoria, vídeo e `sent_id`.
-2. `03-topic-modeling/scripts/run_global_nmf_sentences.py` ajusta NMF sobre TF-IDF da **frase central**. O run final pinado é `nmf_global_sentence_k20_20261003_134035`: 116.111 frases filtradas e K=20.
-3. `03-topic-modeling/scripts/run_restricted_nmf_gensim.py` ajusta NMF local nos dez temas globais `[1,3,5,7,9,10,11,14,15,17]`. Foram selecionadas 57.952 frases; 711 sem BoW local continuam no resultado com subtópico `-1`.
-4. `04-requirements/run_topic_requirement_review.py` une os dois níveis por `sent_id`, aplica o léxico fixo de pedidos/queixas e gera rankings, evidências e uma amostra cega de 212 frases. O contexto é usado na **leitura humana**, não no treino do NMF final.
+| Etapa | Onde | O que faz |
+|---|---|---|
+| 0 | `00-dataset/` | JSON de transcrições + metadados → CSV bruto e categoria de produto |
+| 1 | `01-preprocessing/notebooks/01_preprocessing.ipynb` | filtro de idioma e limpeza → `corpus_limpo.csv` |
+| 2 | `02-sentences/build_sentences.py` | segmentação em frases, com uma vizinha de cada lado como contexto |
+| 3a | `03-topic-modeling/notebooks/stm/01_stm_youtube_doc.ipynb` | STM em documentos (requer R) |
+| 3b | `03-topic-modeling/notebooks/nmf/01_nmf_global.ipynb` | NMF global (K=20) na frase central; escolha dos temas de aspecto |
+| 3c | `03-topic-modeling/notebooks/nmf/02_nmf_topicos.ipynb` | NMF local nos temas escolhidos; monta a amostra cega |
+| 4 | `04-requirements/` | rankings, amostra cega, guia de anotação e pontuação dos rótulos humanos |
 
-O run, os temas, as contagens esperadas e os parâmetros de revisão estão em [params.yaml](03-topic-modeling/configs/params.yaml), seção `final_sentence_pipeline`. Os artefatos de revisão estão em `04-requirements/data/output/topicos_requisitos/nmf_global_k20_20261003_final/`.
+Os dois notebooks de NMF chamam os scripts `03-topic-modeling/scripts/run_global_nmf_sentences.py` e `run_restricted_nmf_gensim.py`, que também rodam pela linha de comando.
 
-## Comandos principais
-
-Com os runs de NMF já presentes no workspace:
-
-```powershell
-python 04-requirements/run_topic_requirement_review.py --help
-```
-
-O comando sem argumentos usa a configuração congelada. O diretório final já foi gerado; para refazer a exportação, escolha outro caminho com `--output`, pois o comando recusa sobrescrever um run existente. Para pontuar uma **cópia preenchida por anotadores humanos** de `amostra_cega.csv`:
+## Como rodar do zero
 
 ```powershell
-python 04-requirements/score_topic_requirement_review.py --run 04-requirements/data/output/topicos_requisitos/nmf_global_k20_20261003_final --annotations CAMINHO_DA_COPIA_PREENCHIDA.csv
+python -m venv .venv ; .venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m spacy download en_core_web_sm
+
+.venv\Scripts\python 00-dataset/build_corpus.py --input 00-dataset/transcricoes_youtube_metadados.json --output 01-preprocessing/data/raw/youtube/youtube_reviews.csv
+# 01-preprocessing/notebooks/01_preprocessing.ipynb  (gera corpus_limpo.csv)
+.venv\Scripts\python 02-sentences/build_sentences.py
+# 03-topic-modeling/notebooks/nmf/01_nmf_global.ipynb   -> preencher params.yaml (global_run, selected_topics)
+# 03-topic-modeling/notebooks/nmf/02_nmf_topicos.ipynb  -> amostra cega em 04-requirements/data/output/
 ```
 
-O [guia de anotação](04-requirements/guia_anotacao_rq4.md) aceita pedidos de mudança e elogios a capacidades concretas a preservar. O léxico é apenas uma forma de ordenar a leitura; uma marca lexical ou peso temático **não confirma requisito**. A amostra original permanece sem rótulos humanos.
+Os IDs dos temas globais mudam a cada treino. Por isso `global_run`, `selected_topics` e `expected_sentences` em [params.yaml](03-topic-modeling/configs/params.yaml), seção `final_sentence_pipeline`, começam vazios e são preenchidos depois de ler o NMF global.
 
-## Comparadores e limites
+Para pontuar uma **cópia preenchida por anotadores humanos** de `amostra_cega.csv`:
 
-- STM de documento: análise paralela de RQ1; sua saída não é usada no ranking de requisitos.
-- STM de sentenças → NMF: baseline histórico, reproduzível por `04-requirements/run_stm_baseline_requirement_review.py` com caminhos explícitos. Seus 56.669 registros e 205 frases cegas não são a amostra final.
-- Guided NMF e BRETT: pilotos separados, sem participação no pipeline final.
-- `run_restricted_nmf_sentences.py`: alternativa exploratória com TF-IDF local; o run final usa `run_restricted_nmf_gensim.py` com BoW lematizado.
-- A escolha do NMF final foi metodológica. Em corpus comum, o NMF global teve NPMI médio maior que o STM de sentenças (0,0485 × 0,0310), porém menor diversidade de termos (0,635 × 0,939). Nos grupos locais, a média da grade NMF foi menor após NMF global do que após STM (0,0355 × 0,0684). Essas métricas não medem precisão de elicitação; a validação humana continua pendente.
+```powershell
+.venv\Scripts\python 04-requirements/score_topic_requirement_review.py --run CAMINHO_DA_PASTA_DA_REVISAO --annotations CAMINHO_DA_COPIA_PREENCHIDA.csv
+```
 
-## Ambiente e dados
+O [guia de anotação](04-requirements/guia_anotacao_rq4.md) aceita pedidos de mudança e elogios a capacidades concretas a preservar. O léxico de pedido/queixa e o peso temático só ordenam a leitura; **não confirmam requisito**.
 
-Python 3.12, dependências de `requirements.txt` e modelo spaCy `en_core_web_sm` são usados no NMF local. R com o pacote `stm` é necessário para refazer o modelo de documentos ou o baseline histórico. O projeto também contém etapas de coleta (`00-dataset/`) e pré-processamento (`01-preprocessing/`).
+## Testes
 
-`.gitignore` exclui `docs/`, `articles/` e diretórios `data/output`, mas `docs/idealizacao-artigo.txt` já era rastreado pelo Git e suas alterações aparecem normalmente. Os runs e o relatório de comparação são locais e devem ser arquivados separadamente para reprodução fora deste workspace.
+```powershell
+.venv\Scripts\python -m pytest 00-dataset 01-preprocessing 02-sentences 03-topic-modeling/notebooks 04-requirements
+```
+
+Os testes não ajustam modelos. STM exige R com `stm`, `jsonlite` e `glmnet` no `PATH`.
+
+## Dados
+
+O dataset de transcrições está em `00-dataset/transcricoes_youtube_metadados.json` e é versionado. `.gitignore` exclui `docs/` (exceto `docs/idealizacao-artigo.txt`, já rastreado), `articles/` e todos os diretórios `data/raw` e `data/output`; runs e amostras são locais e devem ser arquivados separadamente.

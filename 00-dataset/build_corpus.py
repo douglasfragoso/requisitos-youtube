@@ -1,7 +1,7 @@
 """Converte JSON de transcricoes e metadados do YouTube em CSV bruto.
 
     .venv/Scripts/python.exe 00-dataset/build_corpus.py \
-        --input transcricoes_youtube_metadados.json \
+        --input 00-dataset/transcricoes_youtube_metadados.json \
         --output 01-preprocessing/data/raw/youtube/youtube_reviews.csv
 
 O filtro de idioma e feito posteriormente pelo 01-preprocessing, sobre a
