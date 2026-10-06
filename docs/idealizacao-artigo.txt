@@ -11,6 +11,10 @@ seus resultados. A seleção de temas não foi validada por anotadores humanos.
 A seção 0 é o resumo de uma página; as seções 1-10 mantêm o detalhe.
 O pipeline completo foi rerodado do zero em 2026-10-06 e reproduziu os números
 deste documento (ver 5.1 e Registro de Correções, seção 10).
+Escopo da v1: NMF global -> NMF local (RQ1, descritiva) e teste dos rankings
+de tema/léxico contra leitura aleatória por anotação humana (RQ2, H3).
+Sentimento/intenção é trabalho futuro (4.7). A modelagem está congelada; o
+que falta para a v1 está em 6.2.
 
 
 0. RESUMO (visão de uma página — detalhes nas seções 1-10)
@@ -23,19 +27,21 @@ YouTube, (a) recupera aspectos interpretáveis e (b) apoia a elicitação de
 requisitos. Uma sentença vizinha de cada lado é guardada para a leitura
 humana, não usada no treino. Pesos temáticos e marcas lexicais ordenam a
 leitura; um humano decide o que é requisito candidato. Sentimento/intenção
-permanece etapa proposta.
+fica fora da v1 (trabalho futuro, 4.7).
 
 HIPÓTESES (status)
   H1 sentença: surgem aspectos compartilhados entre categorias ........ SINAL QUALITATIVO
+     (não separa categoria de canal/revisor; limitação declarada, 5.3-B)
   H2 NMF local refina os temas globais de aspecto ..................... SINAL MISTO
-  H3 priorizar negativas/queixas multiplica a taxa de requisitos ...... NÃO TESTADA
+  H3 ler na ordem de um ranking (tema, léxico, combinação) encontra
+     mais requisitos candidatos do que ler ao acaso ................... NÃO TESTADA
+     (teste pré-registrado em 4.6)
 
 PERGUNTAS DE PESQUISA
   RQ1 Que aspectos o NMF recupera na frase central, e como o NMF local
       os refina? ................................................... DESCRITIVA
-  RQ2 Temas/subtemas + marcas lexicais (e, depois, sentimento/intenção)
-      apoiam, via revisão humana, a identificação de requisitos
-      candidatos? ................................................. EM ABERTO
+  RQ2 Temas/subtemas + marcas lexicais apoiam, via revisão humana, a
+      identificação de requisitos candidatos? ..................... EM ABERTO
 
 METODOLOGIA
   1. Corpus: 1.109 vídeos em inglês, 11 categorias (laptop 57% e phone 25%
@@ -46,8 +52,8 @@ METODOLOGIA
   4. Seleção qualitativa de dez temas globais [1,3,5,7,9,10,11,14,15,17],
      que reúnem 57.952 frases (49,9%).
   5. Em cada tema escolhido, NMF local Gensim em lemas/BoW, K em [2,6] pelo
-     maior NPMI da grade (a regra Pareto NPMI × diversidade equivale ao
-     argmax de NPMI, 5.3). 711 frases sem BoW local ficam como subtópico -1.
+     argmax de NPMI da grade (a diversidade é reportada, mas não decidiu
+     nenhum K, 5.3). 711 frases sem BoW local ficam como subtópico -1.
   6. Junção por ID da sentença; busca de marcas lexicais de queixa/pedido;
      rankings por força temática, léxico, combinação e ordem aleatória (4.5).
   7. Amostra cega e revisão humana de candidatos de mudança e de
@@ -70,13 +76,15 @@ RESULTADOS PARCIAIS
     64/100 frases com termo e 14/30 sem termo eram candidatas claras; isso
     não é precisão do pipeline. H3 segue não testada.
 
-PRÓXIMOS PASSOS (ordem)
-  0. Corrigir o desempate do ranking por tema e registrar o protocolo de
-     teste antes de anotar (5.3, 4.6).
-  1. Anotar humanamente as 212 frases cegas, incluindo elogios específicos;
-     uma segunda pessoa revisa parte da amostra e se calcula kappa.
-  2. Pontuar os rankings contra a amostra aleatória (Fisher unilateral com
-     Holm) e reavaliar H1 por categoria, vídeo e canal.
+PRÓXIMOS PASSOS PARA A V1 (ordem; detalhe em 6.2)
+  A. Antes de anotar: decidir o desempate do ranking por tema e o
+     tratamento das marcas negadas; incluir o canal na amostra; implementar
+     o cálculo do teste; regerar a amostra cega; registrar o protocolo
+     (4.6) em commit como pré-registro.
+  B. Dupla anotação de 50 frases (kappa/AC1), adjudicação e anotação do
+     restante.
+  C. Fisher unilateral com Holm por ranking contra a amostra aleatória,
+     robustez por canal (CMH) e redação dos resultados.
 
 
 1. OBJETIVO
@@ -88,9 +96,8 @@ contexto para o anotador; não entra no treino dos modelos. O objetivo é
 descrever os aspectos recuperados e avaliar se os temas ajudam humanos a
 localizar evidências de requisitos de mudança ou preservação. Força temática
 e marcas lexicais ordenam a leitura; somente a revisão humana define
-requisitos candidatos. Sentimento/intenção é proposta adicional de ordenação,
-ainda não executada. O artigo não analisa estrutura temática em nível de
-documento.
+requisitos candidatos. Sentimento/intenção é trabalho futuro, fora da v1.
+O artigo não analisa estrutura temática em nível de documento.
 
 
 2. HIPÓTESES DE TRABALHO
@@ -99,7 +106,10 @@ H1 (sentença) — SINAL QUALITATIVO: o NMF global recupera aspectos como
 bateria, tela, desempenho e teclado, que podem ocorrer em mais de uma
 categoria; portas e áudio ficam mais mistos. A distribuição desses aspectos
 entre categorias, vídeos e canais ainda precisa de avaliação específica
-(5.2, 5.3-B).
+(5.2, 5.3-B). Limitação para a v1: canal e categoria se confundem (Dave2D e
+Just Josh são sobretudo laptop; Marques Brownlee, sobretudo phone), então
+"compartilhado entre categorias" não se separa de "compartilhado entre
+revisores". H1 é reportada como sinal qualitativo, sem inferência.
 
 H2 (NMF local) — SINAL INICIAL, QUALIDADE MISTA: decompor as sentenças dos
 temas globais revela subtemas técnicos em bateria, portas, tela, desempenho
@@ -107,12 +117,13 @@ e teclado. Áudio, aparência, preço e ergonomia têm mistura de avaliação
 genérica e aspecto. O NMF local usa BoW bruto; força de atribuição
 global/local não equivale à probabilidade de requisito (ver 4.4 e 5.1).
 
-H3 (elicitação por sentimento/intenção) — AINDA NÃO TESTADA: priorizar as
-sentenças negativas ou classificadas como queixa/pedido (pós-hoc) aumenta, de
-forma clara em relação à taxa-base e a um baseline lexical, a proporção de
-sentenças que um humano confirma como requisito candidato; e os requisitos
-confirmados se concentram em temas/subtemas identificáveis. Critério de
-sucesso fixado antes da medição (ver 4.7).
+H3 (priorização da leitura) — AINDA NÃO TESTADA: ler as frases na ordem de
+um ranking (`topico`, `lexical` ou `topico_lexical`, 4.5) encontra uma
+proporção maior de requisitos candidatos confirmados por humano do que ler
+frases ao acaso; e os requisitos confirmados se concentram em
+temas/subtemas identificáveis. Teste e critério fixados antes da anotação
+(4.6). A versão anterior de H3, com priorização por sentimento/intenção,
+passou a trabalho futuro (4.7).
 
 
 3. PERGUNTAS DE PESQUISA
@@ -123,15 +134,14 @@ refina? A categoria de produto não entra como covariável do NMF.
 
 RQ2 (elicitação) — EM ABERTO
 A evidência de sentença, organizada em temas e subtemas (NMF) e priorizada por
-força temática ou marcas de queixa/pedido no teste atual, apoia, via revisão
-humana, a identificação de requisitos candidatos? Em que temas e subtemas
-eles se concentram? Sentenças positivas, negativas e neutras continuam
-elegíveis; a etapa planejada de sentimento/intenção em H3 apenas acrescentaria
-outras formas de ordenação, sem filtro automático. A decisão é sempre humana.
+força temática ou marcas de queixa/pedido, apoia, via revisão humana, a
+identificação de requisitos candidatos? Em que temas e subtemas eles se
+concentram? Sentenças positivas, negativas e neutras continuam elegíveis,
+sem filtro automático. A decisão é sempre humana.
 
-Fora de escopo neste artigo (trabalho futuro): sentimento como covariável de
-prevalência; estrutura temática em nível de documento; modelos guiados por
-sementes.
+Fora de escopo neste artigo (trabalho futuro): ordenação por
+sentimento/intenção (4.7); sentimento como covariável de prevalência;
+estrutura temática em nível de documento; modelos guiados por sementes.
 
 
 4. METODOLOGIA
@@ -189,9 +199,11 @@ escolhidos qualitativamente antes da leitura dos resultados de requisitos:
 claro; 1 e 17 misturam áudio/qualidade; 5,7,10 são exploratórios. Todas as
 57.952 frases atribuídas a esses temas entram no NMF local, sem limiar
 retrospectivo de peso. Por tema: lematização spaCy, BoW bruto Gensim,
-`no_below=5`, `no_above=0,5`, grade K=2-6 com 10 passes, escolha por
-fronteira de Pareto NPMI × diversidade (na prática, argmax de NPMI; ver 5.3),
-modelo final com 20 passes. C_v é reportado, não usado para escolher K.
+`no_below=5`, `no_above=0,5`, grade K=2-6 com 10 passes, escolha pelo
+argmax de NPMI da grade, modelo final com 20 passes. O código aplica a
+fronteira de Pareto NPMI × diversidade com desempate pelo maior NPMI, o que
+equivale ao argmax de NPMI: a diversidade não decidiu nenhum K (5.3-A.3).
+No artigo, descrever a regra como argmax de NPMI e reportar a diversidade. C_v é reportado, não usado para escolher K.
 K selecionados: 1->3; 3->4; 5->2; 7->3; 9->4; 10->3; 11->6; 14->6;
 15->5; 17->6. Frases sem termos no dicionário local (711) recebem ID -1,
 permanecem no export e têm score temático zero. A junção é por `sent_id` e
@@ -244,7 +256,9 @@ são provisórios e precisam ser conferidos em frases sorteadas.
 4.6 Protocolo de teste de hipótese (RQ2) — proposto em 2026-10-05
 Pergunta: ler na ordem de um ranking encontra mais requisitos candidatos do
 que ler frases ao acaso? Ordem das etapas:
-  1. Antes de anotar: corrigir o desempate do ranking `topico` (5.3) e
+  1. Antes de anotar: corrigir o desempate do ranking `topico` (5.3-A.1),
+     decidir o tratamento das marcas negadas (5.3-A.4), fixar o limiar de
+     kappa e o tamanho do top (50 ou 100), regerar a amostra cega e
      registrar as regras abaixo em commit, como pré-registro.
   2. Dupla anotação independente de 50 frases, sorteadas entre todas as
      origens da amostra (tema, léxico, combinação e aleatória).
@@ -287,11 +301,16 @@ uma meta fixa (útil só se a meta for fixada antes); regressão logística com
 ranking, canal e categoria (instável com cerca de 200 frases anotadas).
 Implementação prevista: parâmetros em `params.yaml::final_sentence_pipeline`
 e cálculo em `04-requirements/score_topic_requirement_review.py`, com o
-canal incluído em `amostra_origem.csv`.
+canal incluído em `amostra_origem.csv`. Estado em 2026-10-06: o script só
+calcula a precisão por ranking; Fisher, Holm, kappa/AC1, bootstrap por
+vídeo, CMH e permutação ainda não estão implementados, e
+`amostra_origem.csv` ainda não tem o canal.
 
-4.7 Sentimento/intenção pós-hoc e critério de sucesso do MVP (RQ2/H3)
-No desenho proposto para H3, sentimento entraria como tag por sentença, nos
-temas de aspecto — não como covariável de prevalência nem como filtro.
+4.7 Sentimento/intenção pós-hoc — TRABALHO FUTURO (fora da v1)
+Esta seção registra o desenho para um artigo posterior; nada dela é
+executado na v1, cujo teste é o de 4.6. Sentimento entraria como tag por
+sentença, nos temas de aspecto — não como covariável de prevalência nem
+como filtro.
 Uso proposto: ordenar a leitura humana
 (negativas/queixas primeiro) e reportar, por tema/subtema, a proporção de
 negativas.
@@ -551,7 +570,8 @@ assistente (run original), 100 frases com marca sorteadas igualmente entre os
 dez temas tiveram 64 `sim`, 11 `nao`, 25 `incerto`; 30 frases sem marca
 tiveram 14 `sim`, 14 `nao`, 2 `incerto`. Nenhum desses números é precisão
 validada nem demonstra superioridade de um ranking; falta anotação humana
-cega (4.6). O guia de anotação está em `04-requirements/guia_anotacao_rq4.md`.
+cega (4.6). A amostra cega atual será regerada após o desempate do ranking
+por tema; a auditoria acima não será reaproveitada como rótulo. O guia de anotação está em `04-requirements/guia_anotacao_rq4.md`.
 Exemplos reais de frases-candidatas e leitura provisória:
   - "Other than this, its battery life is disappointing." — candidato de
     mudança: aumentar a autonomia (xXefNcIwn18_12).
@@ -577,19 +597,38 @@ decisão é sempre do anotador.
 - 2026-10-06: o STM (documento e sentença), o Guided NMF/keyATM e o BRETT
   são removidos do projeto. A comparação STM × NMF, as hipóteses H1/H3/H6
   antigas e a RQ1/RQ3 antigas deixam de fazer parte do artigo.
+- 2026-10-06: escopo da v1 = RQ1 descritiva + H3/RQ2 testada pelos
+  rankings de tema/léxico contra leitura aleatória (4.6). Sentimento/
+  intenção passa a trabalho futuro (4.7). A modelagem (run pinado, temas
+  selecionados, K locais) não muda mais para a v1.
 
 6.2 Ordem dos próximos passos
-0. Antes de anotar (5.3): decidir e registrar o desempate do ranking por
-   tema (297 frases empatadas em 1,0); se mudar, regerar a amostra cega.
-   Tratar marcas negadas ("no problem") como possível elogio e incluir o
-   canal como estrato em toda análise de RQ2.
-1. Anotar humanamente as 212 frases cegas, preservando a planilha original
-   vazia. Elogios concretos também podem indicar características a
-   preservar. Uma segunda pessoa revisa uma fração de modo independente. A
-   leitura exploratória do assistente não é gabarito.
-2. Pontuar, após a anotação, os rankings de tema, léxico e combinação com
-   precisão@50 e comparar com as 100 frases aleatórias fora dos tops, pelo
-   teste exato de Fisher unilateral com Holm (protocolo em 4.6).
+Para a v1 (passos 0-2). Os passos 3-6 são trabalho posterior.
+0. Antes de anotar (nada deve ser anotado antes do commit de 0.f):
+   a. Decidir o desempate do ranking por tema (5.3-A.1; 297 frases
+      empatadas em 1,0). Opções: ativação bruta (recalcular W com
+      `model.pkl`), comprimento mínimo ou peso × log(n_tokens).
+   b. Decidir as marcas negadas ("no problem", "not an issue";
+      5.3-A.4): retirar do léxico com regex de negação ou manter e
+      orientar no guia que podem ser elogio de preservação. Registrar
+      também no guia como tratar defeitos de unidade (5.3-C).
+   c. Incluir o canal em `amostra_origem.csv`.
+   d. Implementar em `score_topic_requirement_review.py` o kappa/AC1, o
+      Fisher unilateral com Holm, o bootstrap por vídeo e o CMH por canal,
+      com testes em dados sintéticos.
+   e. Regerar a amostra cega numa pasta nova (a pasta atual não é
+      sobrescrita).
+   f. Fixar o limiar de kappa e o tamanho do top em `params.yaml` e fazer
+      o commit de pré-registro do protocolo (4.6).
+1. Anotar humanamente a amostra cega, preservando a planilha original
+   vazia: dupla anotação independente de 50 frases, kappa/AC1,
+   adjudicação e anotação do restante. Elogios concretos também podem
+   indicar características a preservar. A leitura exploratória do
+   assistente não é gabarito.
+2. Pontuar os rankings de tema, léxico e combinação contra as frases
+   aleatórias fora dos tops, pelo teste exato de Fisher unilateral com
+   Holm, mais lift, IC por bootstrap de vídeos e CMH por canal (4.6).
+   Reportar H1 como sinal qualitativo com a limitação de canal (2).
 3. Para estimar requisitos perdidos fora dos rankings e prevalência no corpus,
    sortear uma amostra probabilística das 57.952 frases selecionadas e outra
    dos temas globais não selecionados. A amostra cega atual combina tops
@@ -616,8 +655,8 @@ decisão é sempre do anotador.
   bateria, tela e controles de software aparecem nas leituras. Sihag et al.
   2023 [1] é precedente em RE para vídeo como fonte de requisitos.
 - Contribuição proposta: organização por tema/subtema e priorização de
-  leitura por tópico/léxico. Sentimento/intenção continua hipótese adicional
-  não testada.
+  leitura por tópico/léxico, avaliada contra leitura aleatória.
+  Sentimento/intenção é trabalho futuro.
 - Precedente mais próximo com unidade = sentença: Timoshenko & Hauser (2019),
   necessidades de cliente em UGC com filtro de sentenças informativas —
   levantar e ler.
@@ -739,17 +778,17 @@ panorama e surveys, ao lado de Cai et al. 2025).
 
 9. PONTOS EM ABERTO
 ---------------------
-- Fechar protocolo de anotação humana em RQ2: guia prevê segunda leitura
-  independente de 50 itens. Protocolo de concordância (kappa, AC1) e de teste
-  (Fisher unilateral com Holm, robustez por canal) proposto em 4.6; falta
-  fixar o limiar de kappa e registrar as regras antes de anotar.
+Bloqueiam a v1 (ver 6.2, passos 0-2):
 - Desempate do ranking por tema (5.3-A.1) e regeração da amostra cega.
 - Tratamento de marcas lexicais negadas e de defeitos de unidade no guia de
   anotação (5.3-A.4, 5.3-C).
+- Canal em `amostra_origem.csv`; implementação de kappa/AC1, Fisher com
+  Holm, bootstrap por vídeo e CMH no script de pontuação.
+- Limiar de kappa e tamanho do top fixados e commit de pré-registro (4.6).
+- Anotação humana cega da amostra regerada (4.5, 5.4).
+Não bloqueiam a v1:
 - Modelo de sentimento/intenção, com ou sem ABSA, e protocolo de validação
-  (4.7).
-- Meta numérica do critério de sucesso de H3 — fixar antes do piloto (4.7).
-- Anotação humana cega das 212 frases do run (4.5, 5.4).
+  (4.7, trabalho futuro).
 - Reanálise de H1 por categoria, vídeo e canal.
 - Análise de sensibilidade BoW × TF-IDF no NMF local somente após os rótulos,
   sem alterar o run congelado retrospectivamente.
@@ -761,7 +800,7 @@ panorama e surveys, ao lado de Cai et al. 2025).
   guiados e a numeração antiga de hipóteses e RQs; atualizar para este
   documento.
 - Sentimento como covariável de prevalência: trabalho futuro, fora deste
-  artigo (o uso pós-hoc de 4.7 é outra coisa e está no escopo).
+  artigo (assim como o uso pós-hoc de 4.7).
 
 
 10. REGISTRO DE CORREÇÕES
@@ -854,3 +893,15 @@ numeração de hipóteses que não existem mais; ficam como histórico.
 - Auditoria exploratória do baseline antigo (205 frases, 33 `sim`/12 `nao`/
   5 `incerto`) e a contagem "14 do NMF e 9 do STM" de frases exclusivas:
   REMOVIDAS junto com o baseline; não comparam nada no desenho atual.
+
+2026-10-06 — Escopo da v1:
+- H3 REFORMULADA: de "priorizar negativas/queixas por sentimento/intenção"
+  para "ler na ordem de um ranking de tema/léxico encontra mais requisitos
+  candidatos do que ler ao acaso", que é o que o teste de 4.6 mede.
+  Sentimento/intenção (4.7) passa a trabalho futuro; RQ2 deixa de citá-lo.
+- K local descrito como argmax de NPMI (resumo e 4.4); a regra de Pareto
+  continua no código, mas não decidiu nenhum K.
+- H1: limitação de confusão canal × categoria declarada na hipótese.
+- Próximos passos (resumo, 4.6, 6.2, 9) separados entre o que bloqueia a
+  v1 e o que é posterior. Registrado que `score_topic_requirement_review.py`
+  ainda só calcula precisão e que `amostra_origem.csv` não tem canal.
