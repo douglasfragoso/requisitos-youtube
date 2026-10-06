@@ -84,14 +84,14 @@ llm:
 # os IDs de tema mudam se o corpus ou o vocabulario mudarem.
 final_sentence_pipeline:
   global_k: 20
-  global_run: null          # ex.: nmf_global_sentence_k20_AAAAMMDD_HHMMSS
-  selected_topics: []       # temas globais escolhidos por leitura qualitativa
+  global_run: nmf_global_sentence_k20_20261005_221423          # ex.: nmf_global_sentence_k20_AAAAMMDD_HHMMSS
+  selected_topics: [1, 3, 5, 7, 9, 10, 11, 14, 15, 17]       # temas globais escolhidos por leitura qualitativa
   local:
     k_range: [2, 6]         # K local: maior NPMI no grid (fronteira NPMI x diversidade)
     no_below: 5
     no_above: 0.5
   local_subdir: restricted_gensim
-  expected_sentences: null  # total de frases nos temas selecionados (conferencia)
+  expected_sentences: 57952  # total de frases nos temas selecionados (conferencia)
   review_output: null       # nome da pasta de saida em 04-requirements
   top_k: 50
   n_random: 100
