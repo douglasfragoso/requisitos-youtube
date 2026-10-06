@@ -1,43 +1,11 @@
 # =============================================================================
-# 03-topic-modeling — STM de documentos e NMF global/local de sentencas
+# 03-topic-modeling — NMF global e local de sentencas
 # =============================================================================
 
 corpora:
 
-  youtube_doc:
-    subdir: youtube
-    description: "transcricoes de reviews de produtos no YouTube, EN, nivel documento"
-    text_column: message
-    date_column: upload_date
-    post_id_column: post_id
-    covariates:
-      - date
-      - product_category
-    stopwords_emojis:
-      - "yeah"
-      - "maybe"
-      - "basically"
-      - "okay"
-      - "gonna"
-      - "wanna"
-      - "gotta"
-      - "kind"
-      - "lot"
-      - "thing"
-      - "stuff"
-      - "guy"
-      - "video"
-      - "channel"
-      - "subscribe"
-      - "like"
-    token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
-    stm_prevalence_formula: "~ s(as.numeric(as.Date(date))) + product_category"
-    stm_min_tokens_per_doc: 200
-    stm_best_k: 12  # maior C_v; demais metricas e menor K so desempatem
-    language: en
-
   youtube_sent:
-    description: "transcricoes de reviews de produtos no YouTube, EN, nivel sentenca (NMF)"
+    description: "transcricoes de reviews de produtos no YouTube, EN, nivel sentenca"
     text_column: sentence
     stopwords_emojis:
       - "yeah"
@@ -57,26 +25,8 @@ corpora:
     token_pattern: '(?u)\b[a-zA-Z]{2,}\b'
     language: en
 
-# =============================================================================
-default_corpus: youtube_doc
+default_corpus: youtube_sent
 seed: 42
-
-# === STM ===
-stm:
-  k_range: [5, 30]
-  rscript_path: "Rscript"
-  no_below: 5
-  no_above: 0.5
-  max_em_its: 300
-  timeout_sec: 21600
-
-# === Nomeacao (LLM) ===
-llm:
-  model: "gemma2:2b-instruct-q4_K_M"
-  fallback_model: "qwen3:4b"
-  base_url: "http://localhost:11434"
-  enabled: true
-  timeout_per_topic: 30
 
 # === Modelo final de sentencas: NMF global -> NMF local ===
 # Notebooks: notebooks/nmf/01_nmf_global.ipynb e notebooks/nmf/02_nmf_topicos.ipynb.
@@ -96,10 +46,6 @@ final_sentence_pipeline:
   top_k: 50
   n_random: 100
 
-# === Avaliacao ===
+# === Avaliacao (NMF local) ===
 evaluation:
-  top_n_keywords: 10
-  top_n_keywords_metrics: 20
-  top_n_keywords_llm: 50
-  stm_sigma_prior_grid: [0, 0.3, 0.5, 0.7]
-  stm_gamma_prior_grid: ["Pooled", "L1"]
+  top_n_keywords: 10   # palavras por topico no NPMI, na diversidade e no export

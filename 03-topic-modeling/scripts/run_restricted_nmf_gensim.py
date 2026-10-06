@@ -14,10 +14,10 @@ from gensim.models import CoherenceModel, Nmf
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "03-topic-modeling" / "notebooks"))
-from _helpers import (  # noqa: E402
-    compute_topic_diversity,
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from nmf_utils import (  # noqa: E402
     compute_doc_distributions,
+    compute_topic_diversity,
     extract_topics_keywords,
     lemmatize_corpus,
     train_nmf,
@@ -86,9 +86,8 @@ def run(global_run: Path, topics: list[int], seed: int) -> None:
         output.mkdir(parents=True, exist_ok=True)
         print(f"tema global {global_topic}: lematizando {len(subset)} frases", flush=True)
         tokenized, dictionary = lemmatize_corpus(
-            subset.sentence.astype(str).tolist(), "en",
-            {"nmf": {"no_below": no_below, "no_above": no_above}},
-            model_key="nmf", extra_stopwords=cfg["stopwords_emojis"],
+            subset.sentence.astype(str).tolist(), no_below=no_below,
+            no_above=no_above, extra_stopwords=cfg["stopwords_emojis"],
         )
         corpus_bow = [dictionary.doc2bow(tokens) for tokens in tokenized]
         diagnostics = grid_scores(corpus_bow, dictionary, tokenized, ks,

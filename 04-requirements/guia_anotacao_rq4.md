@@ -3,8 +3,7 @@
 O run final de sentenças está em
 `04-requirements/data/output/topicos_requisitos/nmf_global_k20_20261003_final/`.
 Ele reúne 57.952 frases de dez temas do NMF global e seus subtópicos NMF;
-`amostra_cega.csv` contém 212 frases únicas para revisão. O antigo run
-`20260928_v4/` é o baseline STM de sentenças → NMF e não substitui esta amostra.
+`amostra_cega.csv` contém 212 frases únicas para revisão. Runs antigos de baseline (já removidos do projeto) não substituem esta amostra.
 
 ## Unidade e decisão
 
