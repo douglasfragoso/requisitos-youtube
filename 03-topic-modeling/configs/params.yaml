@@ -34,7 +34,7 @@ seed: 42
 # os IDs de tema mudam se o corpus ou o vocabulario mudarem.
 final_sentence_pipeline:
   global_k: 20
-  global_run: nmf_global_sentence_k20_20261005_221423          # ex.: nmf_global_sentence_k20_AAAAMMDD_HHMMSS
+  global_run: nmf_global_sentence_k20_20261017_165539          # ex.: nmf_global_sentence_k20_AAAAMMDD_HHMMSS
   selected_topics: [1, 3, 5, 7, 9, 10, 11, 14, 15, 17]       # temas globais escolhidos por leitura qualitativa
   local:
     k_range: [2, 6]         # K local: maior NPMI no grid (fronteira NPMI x diversidade)
